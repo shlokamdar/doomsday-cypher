@@ -12,8 +12,8 @@ export function Submissions() {
   const [result, setResult] = useState<"" | "correct" | "wrong">("");
   const [q, setQ] = useState("");
   const userName = (id: string) => view.users?.find((u) => u.id === id)?.displayName ?? "Former member";
-  const teamName = (id: string) => view.teams.find((t) => t.id === id)?.name ?? "Deleted squad";
-  const chTitle = (id: string) => view.challenges.find((c) => c.id === id)?.title ?? "Deleted breach";
+  const teamName = (id: string) => view.teams.find((t) => t.id === id)?.name ?? "Deleted team";
+  const chTitle = (id: string) => view.challenges.find((c) => c.id === id)?.title ?? "Deleted challenge";
   const rows = [...view.submissions]
     .sort((a, b) => b.at - a.at)
     .filter((s) => (!team || s.teamId === team) && (!ch || s.challengeId === ch) && (!result || (result === "correct") === s.correct))
@@ -29,7 +29,7 @@ export function Submissions() {
             onClick={() =>
               downloadText(
                 "submissions.csv",
-                toCsv([["time", "squad", "member", "breach", "correct", "value"], ...rows.map((s) => [new Date(s.at).toISOString(), teamName(s.teamId), userName(s.userId), chTitle(s.challengeId), s.correct ? "yes" : "no", s.value ?? ""])]),
+                toCsv([["time", "team", "member", "challenge", "correct", "value"], ...rows.map((s) => [new Date(s.at).toISOString(), teamName(s.teamId), userName(s.userId), chTitle(s.challengeId), s.correct ? "yes" : "no", s.value ?? ""])]),
                 "text/csv",
               )
             }
@@ -41,16 +41,16 @@ export function Submissions() {
         Submissions
       </AdminTitle>
       <div className="mb-4 grid gap-2 sm:grid-cols-4">
-        <select className="input" aria-label="Filter by squad" value={team} onChange={(e) => setTeam(e.target.value)}>
-          <option value="">All squads</option>
+        <select className="input" aria-label="Filter by team" value={team} onChange={(e) => setTeam(e.target.value)}>
+          <option value="">All teams</option>
           {view.teams.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>
           ))}
         </select>
-        <select className="input" aria-label="Filter by breach" value={ch} onChange={(e) => setCh(e.target.value)}>
-          <option value="">All breaches</option>
+        <select className="input" aria-label="Filter by challenge" value={ch} onChange={(e) => setCh(e.target.value)}>
+          <option value="">All challenges</option>
           {view.challenges.map((c) => (
             <option key={c.id} value={c.id}>
               {c.title}
@@ -69,9 +69,9 @@ export function Submissions() {
           <thead className="text-xs uppercase tracking-wider text-steel/60">
             <tr>
               <th className="px-3 py-2">Time</th>
-              <th className="px-3 py-2">Squad</th>
+              <th className="px-3 py-2">Team</th>
               <th className="px-3 py-2">Member</th>
-              <th className="px-3 py-2">Breach</th>
+              <th className="px-3 py-2">Challenge</th>
               <th className="px-3 py-2">Guess</th>
             </tr>
           </thead>

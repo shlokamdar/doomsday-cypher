@@ -79,7 +79,7 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
             className="input font-mono"
             autoComplete="off"
             spellCheck={false}
-            placeholder={editing ? "Leave empty to keep the current flag" : "DC{…}"}
+            placeholder={editing ? "Leave empty to keep the current flag" : "IAMDOOM{…}"}
             value={value.flag ?? ""}
             onChange={(e) => set("flag", e.target.value)}
           />
@@ -90,7 +90,7 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
         </label>
         <div>
           <label className="label" htmlFor={id("att")}>
-            Attempts / squad
+            Attempts / team
           </label>
           <input id={id("att")} type="number" min={0} className="input" value={value.maxAttempts} onChange={(e) => set("maxAttempts", Number(e.target.value))} aria-describedby={id("att-h")} />
           <span id={id("att-h")} className="text-[11px] text-steel/50">

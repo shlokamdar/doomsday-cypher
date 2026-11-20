@@ -6,7 +6,7 @@ import type { ThemeId } from "../core/types";
 import { useBackend, useNow, usePrefersReducedMotion } from "../hooks/store";
 import { ThemeIcon } from "./Icons";
 
-/* ---------------- Doomsday Clock ---------------- */
+/* ---------------- Timer ---------------- */
 
 export function DoomsdayClock({ size = "lg", className = "" }: { size?: "sm" | "md" | "lg" | "xl"; className?: string }) {
   const { view } = useBackend();
@@ -14,7 +14,7 @@ export function DoomsdayClock({ size = "lg", className = "" }: { size?: "sm" | "
   const s = view.settings;
   const phase = clockPhase(s, now);
   const ms = remainingMs(s, now);
-  const label = phase === "idle" ? "Awaiting launch" : phase === "ended" ? "Time's up" : ms < 10 * 60_000 ? "Final minutes" : "Doomsday Clock";
+  const label = phase === "idle" ? "Awaiting launch" : phase === "ended" ? "Time's up" : ms < 10 * 60_000 ? "Final minutes" : "Time left";
   const color = phase === "ended" ? "text-breach" : phase === "idle" ? "text-steel" : ms < 10 * 60_000 ? "text-breach" : "text-gold";
   const sizes = { sm: "text-2xl", md: "text-4xl", lg: "text-5xl sm:text-6xl", xl: "text-6xl sm:text-8xl" };
   return (

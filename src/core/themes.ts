@@ -8,7 +8,7 @@ export interface ThemeMeta {
   intel: string;
 }
 
-/** The six breach categories. Icons live in components/Icons.tsx. */
+/** The six challenge categories. Icons live in components/Icons.tsx. */
 export const THEMES: ThemeMeta[] = [
   {
     id: "reality",
@@ -66,13 +66,13 @@ export function findTheme(value: string): ThemeMeta | undefined {
 }
 
 export const DEFAULT_CHALLENGE_TYPES: ChallengeType[] = [
-  { id: "t-recruit", name: "Recruit", description: "Warm-up breaches with one clear step.", color: "#2BD67B" },
+  { id: "t-recruit", name: "Recruit", description: "Warm-up challenges with one clear step.", color: "#2BD67B" },
   { id: "t-agent", name: "Agent", description: "Two or three steps and some digging.", color: "#F2B33D" },
   { id: "t-elite", name: "Elite", description: "Multi-stage. Expect to write a script.", color: "#E0408A" },
-  { id: "t-legend", name: "Legend", description: "For the squad that wants the crown.", color: "#9B7BFF" },
+  { id: "t-legend", name: "Legend", description: "For the team that wants the crown.", color: "#9B7BFF" },
 ];
 
-/** Lane / emblem colours for squads, assigned by creation order. */
+/** Lane / emblem colours for teams, assigned by creation order. */
 export const SQUAD_COLORS = [
   "#2BD67B",
   "#E0408A",

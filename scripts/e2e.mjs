@@ -66,27 +66,22 @@ try {
   await player.click("button:has-text('Kira Valdez')");
   await player.fill("#pw", PLAYER_PW);
   await player.click("form button:has-text('Log in')");
-  await player.waitForSelector("text=Single breaches");
+  await player.waitForSelector("text=Single challenges");
   check("player logged in", true);
-  await player.click("header nav >> text=War Table");
+  await player.click("header nav >> text=Scoreboard");
   await player.waitForSelector("text=Portal race");
   await player.waitForTimeout(1800);
   await player.screenshot({ path: `${SHOTS}/06-war-table.png` });
-  await player.click("header nav >> text=Breaches");
-  await player.waitForSelector("text=Single breaches");
+  await player.click("header nav >> text=Challenges");
+  await player.waitForSelector("text=Single challenges");
 
   // ---------- Command login (Chrome) ----------
-  await admin.goto(URL_ + "#/login?tab=command");
+  await admin.goto(URL_ + "#/login?tab=admin");
   await admin.waitForSelector("#apw", { timeout: 15000 });
   await admin.fill("#apw", ADMIN_PW);
   await admin.click("form button:has-text('Log in')");
-  await admin.waitForSelector("text=Set your own password");
-  await admin.fill("#cur", ADMIN_PW);
-  await admin.fill("#new", NEW_ADMIN_PW);
-  await admin.fill("#new2", NEW_ADMIN_PW);
-  await admin.click("button:has-text('Save password')");
   await admin.waitForSelector("h1:has-text('Dashboard')");
-  check("Command forced password change", true);
+  check("admin login (no forced password change)", true);
   await admin.waitForTimeout(800);
   await admin.screenshot({ path: `${SHOTS}/07-command-dashboard.png` });
 
@@ -99,11 +94,11 @@ try {
   check("clock reset reaches player", ms < 4500, `${ms} ms`);
   await admin.click("main button:has-text('Start 3-hour clock')");
   await confirmDialog("Start 3-hour clock");
-  ms = await timeUntil(player, () => /DOOMSDAY CLOCK/i.test(document.body.innerText) && !/AWAITING LAUNCH/i.test(document.body.innerText));
+  ms = await timeUntil(player, () => /TIME LEFT/i.test(document.body.innerText) && !/AWAITING LAUNCH/i.test(document.body.innerText));
   check("clock start reaches player", ms < 4500, `${ms} ms`);
 
   // 2) Release the draft
-  await admin.click("nav[aria-label=Command] >> text=Breach library");
+  await admin.click("nav[aria-label=Admin] >> text=Challenge library");
   const row = (title) => admin.locator('[data-testid="library-row"]', { hasText: title });
   await row("Last Light Protocol").locator("button:has-text('Release now')").click();
   ms = await timeUntil(player, () => document.body.innerText.includes("Last Light Protocol"));
@@ -143,8 +138,8 @@ try {
     }).observe(document.body, { childList: true, subtree: true });
   });
   await player.click('[data-testid="breach-card"]:has-text("Echoes in the Void")');
-  await player.fill("#flag", "DC{this_is_not_it}");
-  await player.click("button:has-text('Seal breach')");
+  await player.fill("#flag", "IAMDOOM{this_is_not_it}");
+  await player.click("button:has-text('Submit flag')");
   await player.waitForSelector('[data-testid="wrong-popup"]');
   await player.waitForTimeout(450);
   await player.screenshot({ path: `${SHOTS}/04-wrong-flag.png` });
@@ -154,11 +149,11 @@ try {
   await player.click('[data-testid="breach-card"]:has-text("Echoes in the Void")');
   await player.waitForTimeout(3500); // a poll or two
   check("wrong-flag pop-up shown exactly once", (await player.evaluate(() => window.__wrong)) === 1, `count=${await player.evaluate(() => window.__wrong)}`);
-  check("attempts shared counter visible", (await player.locator("text=attempts left for your squad").count()) === 1);
+  check("attempts shared counter visible", (await player.locator("text=attempts left for your team").count()) === 1);
 
   // ---------- Correct flag celebration ----------
   await player.fill("#flag", flags["c-echoes"]);
-  await player.click("button:has-text('Seal breach')");
+  await player.click("button:has-text('Submit flag')");
   await player.waitForSelector('[data-testid="seal-popup"]');
   await player.waitForTimeout(1400);
   await player.screenshot({ path: `${SHOTS}/05-breach-sealed.png` });
@@ -167,19 +162,19 @@ try {
   await player.click('[data-testid="breach-card"]:has-text("Echoes in the Void")');
   await player.waitForTimeout(3500);
   check("seal pop-up shown exactly once", (await player.evaluate(() => window.__seal)) === 1, `count=${await player.evaluate(() => window.__seal)}`);
-  check("breach shows sealed", (await player.locator("text=Sealed by your squad").count()) > 0);
+  check("breach shows sealed", (await player.locator("text=Solved by your team").count()) > 0);
   await player.keyboard.press("Escape");
 
   // ---------- War Table ----------
-  await player.click("header nav >> text=War Table");
+  await player.click("header nav >> text=Scoreboard");
   await player.waitForSelector("text=Portal race");
   await player.waitForTimeout(1500);
   const first = await player.locator("section[aria-label=Rankings] li").first().innerText();
   check("Iron Meridian leads after sealing", first.includes("Iron Meridian") && first.includes("975"), first.replace(/\s+/g, " "));
 
   // ---------- Command sees the wrong guess, player never does ----------
-  await admin.click("nav[aria-label=Command] >> text=Submissions");
-  await admin.waitForSelector("text=DC{this_is_not_it}", { timeout: 8000 });
+  await admin.click("nav[aria-label=Admin] >> text=Submissions");
+  await admin.waitForSelector("text=IAMDOOM{this_is_not_it}", { timeout: 8000 });
   check("Command sees wrong guesses", true);
 
   // ---------- Mobile width (360px) ----------

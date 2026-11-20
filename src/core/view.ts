@@ -9,8 +9,8 @@ export function publicUser(u: User, includePrivate = false): PublicUser {
 
 /**
  * Builds the filtered view for one viewer. This is the ONLY data a viewer ever receives.
- * Players never get: flag/password hashes, draft/hidden/scheduled breaches, locked hint text,
- * other squads' wrong guesses, or other squads' activity after a freeze / while hidden.
+ * Players never get: flag/password hashes, draft/hidden/scheduled challenges, locked hint text,
+ * other teams' wrong guesses, or other teams' activity after a freeze / while hidden.
  */
 export function buildView(db: DB, viewerId: string | null, now: number, version = "0", sessionInvalid = false): View {
   const me = viewerId ? db.users.find((u) => u.id === viewerId) ?? null : null;
@@ -86,7 +86,7 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
     serverNow: now,
     version,
     settings: { ...s },
-    me: me ? publicUser(me, true) : null,
+    me: me ? { ...publicUser(me, true), mustChangePassword: me.mustChangePassword && s.forcePasswordChange } : null,
     teams: db.teams.map((t) => ({
       id: t.id,
       name: t.name,

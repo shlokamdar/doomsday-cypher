@@ -10,7 +10,7 @@ import { useRun } from "../hooks/ui";
 export function LoginPage() {
   const { view, actions } = useBackend();
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<"squad" | "command">(params.get("tab") === "command" ? "command" : "squad");
+  const [tab, setTab] = useState<"team" | "admin">(params.get("tab") === "admin" ? "admin" : "team");
   const [teamId, setTeamId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -18,7 +18,7 @@ export function LoginPage() {
   const { run, busy } = useRun();
   const navigate = useNavigate();
 
-  if (view.me) return <Navigate to={view.me.role === "admin" ? "/command" : "/breaches"} replace />;
+  if (view.me) return <Navigate to={view.me.role === "admin" ? "/admin" : "/challenges"} replace />;
 
   const team = view.teams.find((t) => t.id === teamId);
   const member = team?.members.find((m) => m.username === username);
@@ -26,10 +26,10 @@ export function LoginPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const r =
-      tab === "squad"
+      tab === "team"
         ? await run(() => actions.login(teamId, username ?? "", password))
         : await run(() => actions.login(null, adminUser, password));
-    if (r) navigate(tab === "squad" ? "/breaches" : "/command");
+    if (r) navigate(tab === "team" ? "/challenges" : "/admin");
     else setPassword("");
   };
 
@@ -38,11 +38,11 @@ export function LoginPage() {
       <div className="flex flex-col items-center text-center">
         <PortalRing size={110} sparks={6} />
         <h1 className="h-display mt-2 text-5xl">Report for duty</h1>
-        <p className="text-steel/80">Pick your squad, tap your name, enter your password.</p>
+        <p className="text-steel/80">Pick your team, tap your name, enter your password.</p>
       </div>
 
       <div className="mx-auto mt-6 flex w-fit rounded-lg border border-white/10 bg-void/60 p-1" role="tablist">
-        {(["squad", "command"] as const).map((t) => (
+        {(["team", "admin"] as const).map((t) => (
           <button
             key={t}
             role="tab"
@@ -53,17 +53,17 @@ export function LoginPage() {
               setPassword("");
             }}
           >
-            {t === "squad" ? "Strike Squad" : "Command"}
+            {t === "team" ? "Team" : "Admin"}
           </button>
         ))}
       </div>
 
       <form onSubmit={submit} className="plate mt-6 p-5 sm:p-6">
-        {tab === "squad" ? (
+        {tab === "team" ? (
           <>
             <fieldset>
-              <legend className="label">1 · Your squad</legend>
-              {view.teams.length === 0 && <p className="text-steel/70">No squads yet. Command creates squads before the event.</p>}
+              <legend className="label">1 · Your team</legend>
+              {view.teams.length === 0 && <p className="text-steel/70">No teams yet. Admin creates teams before the event.</p>}
               <div className="grid gap-2 sm:grid-cols-2">
                 {view.teams.map((t) => (
                   <button
@@ -115,7 +115,7 @@ export function LoginPage() {
           <div className="grid gap-4">
             <div>
               <label className="label" htmlFor="au">
-                Command username
+                Admin username
               </label>
               <input id="au" className="input" autoComplete="username" value={adminUser} onChange={(e) => setAdminUser(e.target.value)} />
             </div>
@@ -127,7 +127,7 @@ export function LoginPage() {
             </div>
           </div>
         )}
-        <button className="btn-primary mt-6 w-full" disabled={busy || !password || (tab === "squad" && !member)}>
+        <button className="btn-primary mt-6 w-full" disabled={busy || !password || (tab === "team" && !member)}>
           {busy ? "Verifying…" : "Log in"}
         </button>
       </form>

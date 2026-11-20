@@ -60,7 +60,7 @@ export interface Challenge {
   hints: Hint[];
   /** 0 = unlimited */
   maxAttempts: number;
-  /** Extra attempts Command has granted to every squad. */
+  /** Extra attempts Admin has granted to every team. */
   bonusAttempts: number;
   hidden: boolean;
   /** null = draft, future = scheduled, past = live */
@@ -73,7 +73,7 @@ export interface Submission {
   userId: string;
   teamId: string;
   challengeId: string;
-  /** Wrong guesses are kept for Command; correct flags are stored only as "(correct flag)". */
+  /** Wrong guesses are kept for Admin; correct flags are stored only as "(correct flag)". */
   value: string;
   correct: boolean;
   at: number;
@@ -106,6 +106,8 @@ export interface Settings {
   scoreboardVisible: boolean;
   freezeAt: number | null;
   submissionsPerMinute: number;
+  /** When on, users with a temporary password must set their own before doing anything else. */
+  forcePasswordChange: boolean;
 }
 
 export interface DB {
@@ -141,7 +143,7 @@ export interface ViewTeam {
 
 export interface ViewHint {
   cost: number;
-  /** Present only when unlocked by the viewer's squad (always for Command). */
+  /** Present only when unlocked by the viewer's team (always for Admin). */
   text?: string;
   unlocked: boolean;
   unlockedBy?: string;
@@ -165,7 +167,7 @@ export interface ViewChallenge {
   releaseAt: number | null;
   createdAt: number;
   status: ChallengeStatus;
-  /** Command only */
+  /** Admin only */
   hasFlag?: boolean;
 }
 
@@ -182,7 +184,7 @@ export interface ViewSubmission {
   userId: string;
   teamId: string;
   challengeId: string;
-  /** Command only */
+  /** Admin only */
   value?: string;
   correct: boolean;
   at: number;
@@ -202,10 +204,10 @@ export interface View {
   solves: Solve[];
   /** Hint spending the viewer may see (same rules as solves). */
   hintUnlocks: HintUnlock[];
-  /** The viewer's own squad's submissions (every submission for Command). */
+  /** The viewer's own team's submissions (every submission for Admin). */
   submissions: ViewSubmission[];
   notifications: Notification[];
-  /** Command only */
+  /** Admin only */
   users?: PublicUser[];
 }
 

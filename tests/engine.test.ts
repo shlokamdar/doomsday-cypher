@@ -77,16 +77,27 @@ describe("login", () => {
   it("accepts the right squad + password and rejects wrong squad or password", async () => {
     const d = await demoWorld();
     const b = await d.make();
-    await expect(b.actions.login("s-nova", "kira.valdez", DEMO_PLAYER_PW)).rejects.toThrow(/Wrong squad/);
-    await expect(b.actions.login("s-iron", "kira.valdez", "nope-nope")).rejects.toThrow(/Wrong squad/);
-    await expect(b.actions.login(null, "kira.valdez", DEMO_PLAYER_PW)).rejects.toThrow(/Wrong squad/);
+    await expect(b.actions.login("s-nova", "kira.valdez", DEMO_PLAYER_PW)).rejects.toThrow(/Wrong team/);
+    await expect(b.actions.login("s-iron", "kira.valdez", "nope-nope")).rejects.toThrow(/Wrong team/);
+    await expect(b.actions.login(null, "kira.valdez", DEMO_PLAYER_PW)).rejects.toThrow(/Wrong team/);
     expect(b.getView()!.me).toBeNull();
     await b.actions.login("s-iron", "kira.valdez", DEMO_PLAYER_PW);
     expect(b.getView()!.me?.username).toBe("kira.valdez");
   });
 
-  it("forces a password change before anything else", async () => {
+  it("does not force a password change unless the setting is on", async () => {
     const w = await adminWorld();
+    const { teamId, credentials } = await w.admin.actions.createTeam("Gamma", ["Dee"]);
+    const p = await w.backend();
+    const r = await p.actions.login(teamId, credentials[0].username, credentials[0].password);
+    expect(r.mustChangePassword).toBe(false);
+    expect(p.getView()!.me?.mustChangePassword).toBe(false);
+    await expect(p.actions.unlockHint("x", 0)).rejects.toThrow(/not found/);
+  });
+
+  it("forces a password change before anything else when the setting is on", async () => {
+    const w = await adminWorld();
+    await w.admin.actions.updateSettings({ forcePasswordChange: true });
     await w.admin.actions.clockStart();
     const { teamId, credentials } = await w.admin.actions.createTeam("Beta", ["Cara"]);
     const p = await w.backend();
@@ -114,7 +125,7 @@ describe("flags", () => {
 
   it("respect case-sensitive breaches", async () => {
     const w = await startedEvent();
-    const flag = "DC{" + crypto.randomUUID() + "}";
+    const flag = "IAMDOOM{" + crypto.randomUUID() + "}";
     const { id } = await w.admin.actions.postSingle(input({ flag, caseSensitive: true }), { mode: "now" });
     const { players } = await joinSquad(w, w.admin);
     expect((await players[0].actions.submitFlag(id, flag.toUpperCase())).correct).toBe(false);
@@ -126,7 +137,7 @@ describe("flags", () => {
     const flag = randomFlag();
     const { id } = await w.admin.actions.postSingle(input({ flag }), { mode: "now" });
     const { players } = await joinSquad(w, w.admin);
-    await expect(players[0].actions.submitFlag(id, flag)).rejects.toThrow("Flags open when the Doomsday Clock starts");
+    await expect(players[0].actions.submitFlag(id, flag)).rejects.toThrow("Flags open when the timer starts");
     await w.admin.actions.clockStart();
     w.clock.t += 181 * MINUTE;
     await expect(players[0].actions.submitFlag(id, flag)).rejects.toThrow("Time's up");
@@ -138,12 +149,12 @@ describe("flags", () => {
     const { id } = await w.admin.actions.postSingle(input(), { mode: "now" });
     const { id: other } = await w.admin.actions.postSingle(input(), { mode: "now" });
     const { players } = await joinSquad(w, w.admin);
-    for (let i = 0; i < 3; i++) await players[i % 2].actions.submitFlag(id, "DC{nope}");
-    await expect(players[0].actions.submitFlag(id, "DC{nope}")).rejects.toThrow(/Slow down/);
+    for (let i = 0; i < 3; i++) await players[i % 2].actions.submitFlag(id, "IAMDOOM{nope}");
+    await expect(players[0].actions.submitFlag(id, "IAMDOOM{nope}")).rejects.toThrow(/Slow down/);
     // a different breach is not affected
-    await players[0].actions.submitFlag(other, "DC{nope}");
+    await players[0].actions.submitFlag(other, "IAMDOOM{nope}");
     w.clock.t += 61_000;
-    await players[0].actions.submitFlag(id, "DC{nope}");
+    await players[0].actions.submitFlag(id, "IAMDOOM{nope}");
   });
 });
 
@@ -151,10 +162,10 @@ describe("permissions", () => {
   it("players cannot call Command actions", async () => {
     const w = await startedEvent();
     const { players } = await joinSquad(w, w.admin);
-    await expect(players[0].actions.clockReset()).rejects.toThrow(/Command only/);
-    await expect(players[0].actions.loadDemo()).rejects.toThrow(/Command only/);
-    await expect(players[0].actions.exportBackup()).rejects.toThrow(/Command only/);
-    await expect(players[0].actions.createTeam("Evil", ["x"])).rejects.toThrow(/Command only/);
+    await expect(players[0].actions.clockReset()).rejects.toThrow(/Admin only/);
+    await expect(players[0].actions.loadDemo()).rejects.toThrow(/Admin only/);
+    await expect(players[0].actions.exportBackup()).rejects.toThrow(/Admin only/);
+    await expect(players[0].actions.createTeam("Evil", ["x"])).rejects.toThrow(/Admin only/);
   });
 });
 
@@ -169,7 +180,7 @@ describe("posting breaches", () => {
     const v = w.admin.getView()!;
     expect(v.challenges.filter((c) => c.waveId === r1.waveId && c.status === "live")).toHaveLength(5);
     expect(v.challenges.filter((c) => c.waveId === r2.waveId && c.status === "draft")).toHaveLength(5);
-    expect(v.notifications[0].title).toMatch(/Incursion wave 1 is live/);
+    expect(v.notifications[0].title).toMatch(/Wave 1 is live/);
     await w.admin.actions.releaseWave(r2.waveId);
     expect(w.admin.getView()!.challenges.filter((c) => c.status === "live")).toHaveLength(10);
   });
@@ -205,7 +216,7 @@ describe("attempts and hints", () => {
     const { players } = await joinSquad(w, w.admin);
     expect((await players[0].actions.submitFlag(id, "wrong")).attemptsLeft).toBe(1);
     expect((await players[1].actions.submitFlag(id, "wrong")).attemptsLeft).toBe(0);
-    await expect(players[0].actions.submitFlag(id, flag)).rejects.toThrow("Out of attempts. Command can grant more.");
+    await expect(players[0].actions.submitFlag(id, flag)).rejects.toThrow("Out of attempts. An admin can grant more.");
     await w.admin.actions.grantAttempts(id);
     const r = await players[0].actions.submitFlag(id, flag);
     expect(r.correct).toBe(true);

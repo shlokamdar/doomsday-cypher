@@ -17,6 +17,7 @@ export function defaultSettings(): Settings {
     scoreboardVisible: true,
     freezeAt: null,
     submissionsPerMinute: 10,
+    forcePasswordChange: false,
   };
 }
 
@@ -42,7 +43,7 @@ export async function freshDb(adminPassword: string, now = Date.now()): Promise<
   db.users.push({
     id: "u-admin",
     username: "admin",
-    displayName: "Command",
+    displayName: "Admin",
     role: "admin",
     teamId: null,
     passwordSalt: salt,
@@ -61,7 +62,7 @@ const DEMO_SQUADS: { id: string; name: string; members: [string, string][] }[] =
 ];
 
 /**
- * Demo event: 4 squads, wave 1 live, one live single, one scheduled (+25 min), one draft.
+ * Demo event: 4 teams, wave 1 live, one live single, one scheduled (+25 min), one draft.
  * The clock started 110 minutes ago. Flags and passwords exist only as precomputed hashes.
  */
 export function demoDb(now = Date.now(), adminOverride?: { salt: string; hash: string }): DB {
@@ -75,7 +76,7 @@ export function demoDb(now = Date.now(), adminOverride?: { salt: string; hash: s
   db.users.push({
     id: "u-admin",
     username: "admin",
-    displayName: "Command",
+    displayName: "Admin",
     role: "admin",
     teamId: null,
     passwordSalt: admin.salt,
@@ -224,7 +225,7 @@ export function demoDb(now = Date.now(), adminOverride?: { salt: string; hash: s
       typeId: "t-legend",
       theme: "machine",
       title: "Last Light Protocol",
-      description: "Draft: the final breach. Command has not released it yet.",
+      description: "Draft: the final challenge. Admin has not released it yet.",
       points: 400,
       files: [],
       hints: [],
@@ -248,13 +249,13 @@ export function demoDb(now = Date.now(), adminOverride?: { salt: string; hash: s
     ["u-cal", "c-paradox", 75],
   ];
   const wrong: [string, string, number, string][] = [
-    ["u-leo", "c-channel9", 18, "DC{channel_nine}"],
+    ["u-leo", "c-channel9", 18, "IAMDOOM{channel_nine}"],
     ["u-sana", "c-channel9", 25, "static"],
-    ["u-felix", "c-skyline", 20, "DC{london}"],
-    ["u-isla", "c-echoes", 50, "DC{deleted}"],
-    ["u-noor", "c-echoes", 58, "DC{void_echo}"],
-    ["u-oren", "c-ledger", 44, "DC{row_42}"],
-    ["u-jun", "c-echoes", 70, "DC{magic}"],
+    ["u-felix", "c-skyline", 20, "IAMDOOM{london}"],
+    ["u-isla", "c-echoes", 50, "IAMDOOM{deleted}"],
+    ["u-noor", "c-echoes", 58, "IAMDOOM{void_echo}"],
+    ["u-oren", "c-ledger", 44, "IAMDOOM{row_42}"],
+    ["u-jun", "c-echoes", 70, "IAMDOOM{magic}"],
     ["u-cal", "c-paradox", 62, "ABCD"],
   ];
   const teamOf = (userId: string) => db.users.find((u) => u.id === userId)!.teamId!;
@@ -276,10 +277,10 @@ export function demoDb(now = Date.now(), adminOverride?: { salt: string; hash: s
   db.hintUnlocks = unlocks;
 
   const notes: Notification[] = [
-    { id: "n-1", title: "The Doomsday Clock is ticking", body: "Three hours. Seal every breach you can. Good luck, squads.", level: "important", at: at(0) },
-    { id: "n-2", title: "Incursion wave 1 is live", body: "Five breaches have opened across the multiverse.", level: "info", at: at(0) },
-    { id: "n-3", title: "New breach: Paradox Gate", body: "A Chronos breach has opened. Worth 200 Power.", level: "info", at: at(40) },
-    { id: "n-4", title: "Reminder: hints cost Power", body: "Opening a hint spends Power for your whole squad. Choose wisely.", level: "info", at: at(65) },
+    { id: "n-1", title: "The Timer is ticking", body: "Three hours. Solve every challenge you can. Good luck, teams.", level: "important", at: at(0) },
+    { id: "n-2", title: "Wave 1 is live", body: "Five challenges have opened across the multiverse.", level: "info", at: at(0) },
+    { id: "n-3", title: "New challenge: Paradox Gate", body: "A Chronos challenge has opened. Worth 200 points.", level: "info", at: at(40) },
+    { id: "n-4", title: "Reminder: hints cost points", body: "Opening a hint spends points for your whole team. Choose wisely.", level: "info", at: at(65) },
   ];
   db.notifications = notes;
   return db;

@@ -66,10 +66,10 @@ export function validateBackup(json: string): DB {
     throw new UserError("Backup is not valid JSON.");
   }
   if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.users) || !Array.isArray(parsed.challenges)) {
-    throw new UserError("Backup is missing users or breaches.");
+    throw new UserError("Backup is missing users or challenges.");
   }
   const db = migrate(parsed);
   const admin = db.users.find((u) => u.role === "admin" && u.passwordHash && u.passwordSalt);
-  if (!admin) throw new UserError("Backup must contain at least one Command (admin) account.");
+  if (!admin) throw new UserError("Backup must contain at least one admin account.");
   return db;
 }

@@ -57,11 +57,11 @@ describe("server: filtered view", () => {
     // Another squad solves after the freeze.
     const nova = await s.client();
     await nova.actions.login("s-nova", "leo.achterberg", DEMO_PLAYER_PW);
-    await nova.actions.submitFlag("c-echoes", "DC{definitely-wrong}");
+    await nova.actions.submitFlag("c-echoes", "IAMDOOM{definitely-wrong}");
     await p.refresh();
     const v = p.getView()!;
     const text = JSON.stringify(v);
-    for (const bad of ["passwordHash", "passwordSalt", "flagHash", "flagSalt", "c-cipher", "c-lastlight", "DC{definitely-wrong}", "DC{london}", "Count the bridges"]) {
+    for (const bad of ["passwordHash", "passwordSalt", "flagHash", "flagSalt", "c-cipher", "c-lastlight", "IAMDOOM{definitely-wrong}", "IAMDOOM{london}", "Count the bridges"]) {
       expect(text).not.toContain(bad);
     }
     // own unlocked hint text is visible
@@ -119,7 +119,7 @@ describe("server: polling", () => {
     const before = p.getView()!;
     const nova = await s.client();
     await nova.actions.login("s-nova", "leo.achterberg", DEMO_PLAYER_PW);
-    await nova.actions.submitFlag("c-echoes", "DC{nope}");
+    await nova.actions.submitFlag("c-echoes", "IAMDOOM{nope}");
     let saw204 = false;
     const orig = p["f"];
     p["f"] = (async (...a: Parameters<typeof fetch>) => {
@@ -184,8 +184,8 @@ describe("server: auth and concurrency", () => {
     const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: {}, body: { method: "constructor", args: [] } }, s.deps);
     expect(r.status).toBe(400);
     const p = await demoPlayer(s);
-    await expect(p.actions.loadDemo()).rejects.toThrow(/Command only/);
-    await expect(p.actions.startFresh()).rejects.toThrow(/Command only/);
+    await expect(p.actions.loadDemo()).rejects.toThrow(/Admin only/);
+    await expect(p.actions.startFresh()).rejects.toThrow(/Admin only/);
   });
 
   it("two concurrent admin writes both survive", async () => {
@@ -211,7 +211,8 @@ describe("server: auth and concurrency", () => {
     const a = await s.client();
     expect(a.getView()!.teams).toHaveLength(0);
     const r = await a.actions.login(null, "admin", "boot-admin-pass");
-    expect(r.mustChangePassword).toBe(true);
+    expect(r.mustChangePassword).toBe(false); // forced change is off by default
+    expect(a.getView()!.users!.find((u) => u.username === "admin")!.mustChangePassword).toBe(true);
   });
 
   it("sends no-store and nosniff headers", async () => {

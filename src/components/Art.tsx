@@ -155,7 +155,7 @@ export function SovereignMask({
   );
 }
 
-/* ---------------- Hexagonal squad emblem generated from the squad name ---------------- */
+/* ---------------- Hexagonal team emblem generated from the team name ---------------- */
 
 const GLYPHS = [
   "M0 -18 L14 10 L0 4 L-14 10 Z", // arrowhead

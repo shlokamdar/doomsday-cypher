@@ -44,7 +44,7 @@ export interface Actions {
   postNotification(title: string, body: string, level: NotificationLevel): Promise<unknown>;
   deleteNotification(id: string): Promise<unknown>;
 
-  updateSettings(patch: Partial<Pick<Settings, "eventName" | "tagline" | "durationMinutes" | "teamSize" | "submissionsPerMinute">>): Promise<unknown>;
+  updateSettings(patch: Partial<Pick<Settings, "eventName" | "tagline" | "durationMinutes" | "teamSize" | "submissionsPerMinute" | "forcePasswordChange">>): Promise<unknown>;
   updateChallengeTypes(types: ChallengeType[]): Promise<unknown>;
   setScoreboardVisible(visible: boolean): Promise<unknown>;
   freezeScoreboard(): Promise<unknown>;

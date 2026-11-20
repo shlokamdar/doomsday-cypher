@@ -23,8 +23,8 @@ export function Library() {
 
   const list = view.challenges.filter((c) => filter === "all" || c.status === filter);
   const groups = [
-    ...[...view.waves].sort((a, b) => b.number - a.number).map((w) => ({ key: w.id, title: `Incursion wave ${w.number}`, waveId: w.id, items: list.filter((c) => c.waveId === w.id) })),
-    { key: "singles", title: "Single breaches", waveId: null as string | null, items: list.filter((c) => !c.waveId) },
+    ...[...view.waves].sort((a, b) => b.number - a.number).map((w) => ({ key: w.id, title: `Wave ${w.number}`, waveId: w.id, items: list.filter((c) => c.waveId === w.id) })),
+    { key: "singles", title: "Single challenges", waveId: null as string | null, items: list.filter((c) => !c.waveId) },
   ].filter((g) => g.items.length);
 
   const counts = (id: string) => ({
@@ -50,7 +50,7 @@ export function Library() {
 
   return (
     <div>
-      <AdminTitle sub="Every breach, grouped by wave. Changes reach players on their next poll.">Breach library</AdminTitle>
+      <AdminTitle sub="Every challenge, grouped by wave. Changes reach players on their next poll.">Challenge library</AdminTitle>
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter by status">
         {(["all", "live", "scheduled", "draft", "hidden"] as const).map((f) => (
           <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)} className={`rounded-full border px-3 py-1 text-sm capitalize ${filter === f ? "border-reactor bg-reactor/15 text-reactor" : "border-white/10 text-steel"}`}>
@@ -69,7 +69,7 @@ export function Library() {
                 className="btn-gold btn-sm"
                 disabled={busy}
                 onClick={async () => {
-                  if (await confirm({ title: "Release this wave now?", body: "Every breach in the wave goes live and a transmission is sent.", confirmLabel: "Release wave" })) await run(() => actions.releaseWave(g.waveId!), "Wave released.");
+                  if (await confirm({ title: "Release this wave now?", body: "Every challenge in the wave goes live and a announcement is sent.", confirmLabel: "Release wave" })) await run(() => actions.releaseWave(g.waveId!), "Wave released.");
                 }}
               >
                 Release this wave now
@@ -112,7 +112,7 @@ export function Library() {
                       </button>
                     )}
                     {c.maxAttempts > 0 && (
-                      <button className="btn-ghost btn-sm" disabled={busy} onClick={() => run(() => actions.grantAttempts(c.id, 3), "+3 attempts for every squad.")}>
+                      <button className="btn-ghost btn-sm" disabled={busy} onClick={() => run(() => actions.grantAttempts(c.id, 3), "+3 attempts for every team.")}>
                         +3 attempts
                       </button>
                     )}
@@ -123,8 +123,8 @@ export function Library() {
                       className="btn-ghost btn-sm text-breach"
                       disabled={busy}
                       onClick={async () => {
-                        if (await confirm({ title: `Delete ${c.title}?`, body: "Its solves and hint spending are removed from the War Table. This can't be undone.", danger: true, confirmLabel: "Delete" }))
-                          await run(() => actions.deleteChallenge(c.id), "Breach deleted.");
+                        if (await confirm({ title: `Delete ${c.title}?`, body: "Its solves and hint spending are removed from the scoreboard. This can't be undone.", danger: true, confirmLabel: "Delete" }))
+                          await run(() => actions.deleteChallenge(c.id), "Challenge deleted.");
                       }}
                     >
                       Delete
@@ -137,7 +137,7 @@ export function Library() {
         </section>
       ))}
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} wide title={<h2 className="h-display text-3xl">Edit breach</h2>}>
+      <Modal open={!!editing} onClose={() => setEditing(null)} wide title={<h2 className="h-display text-3xl">Edit challenge</h2>}>
         {editing && (
           <>
             <BreachForm idPrefix="edit" value={editing} onChange={setEditing} editing />
@@ -149,7 +149,7 @@ export function Library() {
                 className="btn-primary"
                 disabled={busy}
                 onClick={async () => {
-                  const r = await run(() => actions.saveChallenge(editing), "Breach saved.");
+                  const r = await run(() => actions.saveChallenge(editing), "Challenge saved.");
                   if (r) setEditing(null);
                 }}
               >

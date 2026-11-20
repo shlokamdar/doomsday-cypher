@@ -31,17 +31,17 @@ export function BreachesPage() {
 
   return (
     <Page>
-      <section className="plate relative mb-6 overflow-hidden p-5 sm:p-6" aria-label="Your squad">
+      <section className="plate relative mb-6 overflow-hidden p-5 sm:p-6" aria-label="Your team">
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-20 blur-3xl" style={{ background: color }} />
         <div className="relative grid items-center gap-6 lg:grid-cols-[1fr_auto]">
           <div className="flex flex-wrap items-center gap-5">
             <Emblem name={team.name} color={color} size={84} />
             <div className="min-w-0">
-              <div className="text-xs uppercase tracking-[0.3em] text-steel/60">Strike Squad</div>
+              <div className="text-xs uppercase tracking-[0.3em] text-steel/60">Team</div>
               <h1 className="h-display truncate text-4xl sm:text-5xl">{team.name}</h1>
               <div className="mt-1 flex flex-wrap items-baseline gap-4">
                 <span className="font-display text-5xl text-reactor">
-                  <CountUp value={mine?.power ?? 0} /> <span className="text-2xl text-steel/70">Power</span>
+                  <CountUp value={mine?.power ?? 0} /> <span className="text-2xl text-steel/70">Points</span>
                 </span>
                 {mine && view.settings.scoreboardVisible && (
                   <span className="font-display text-3xl text-gold">
@@ -67,7 +67,7 @@ export function BreachesPage() {
 
       <div className="scrollbar-thin -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filter by category">
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>
-          All breaches
+          All challenges
         </FilterChip>
         {THEMES.map((t) => (
           <FilterChip key={t.id} active={filter === t.id} onClick={() => setFilter(t.id)} color={t.tint}>
@@ -78,14 +78,14 @@ export function BreachesPage() {
 
       {view.challenges.length === 0 && (
         <div className="plate p-10 text-center">
-          <p className="font-display text-3xl text-white">No breaches open yet</p>
-          <p className="text-steel/70">Stand by. Command will open the first incursion wave soon.</p>
+          <p className="font-display text-3xl text-white">No challenges open yet</p>
+          <p className="text-steel/70">Stand by. Admin will open the first wave soon.</p>
         </div>
       )}
 
       {singles.length > 0 && (
         <section className="mb-10">
-          <h2 className="h-display mb-3 text-3xl">Single breaches</h2>
+          <h2 className="h-display mb-3 text-3xl">Single challenges</h2>
           <CardGrid items={singles} solved={solvedByUs} count={solveCount} now={now} onOpen={setOpenId} />
         </section>
       )}
@@ -94,15 +94,15 @@ export function BreachesPage() {
         const items = list.filter((c) => c.waveId === w.id).sort((a, b) => a.points - b.points);
         if (!items.length) return null;
         const all = view.challenges.filter((c) => c.waveId === w.id);
-        const sealed = all.filter((c) => solvedByUs.has(c.id)).length;
+        const solved = all.filter((c) => solvedByUs.has(c.id)).length;
         return (
           <section key={w.id} className="mb-10">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="h-display text-3xl">
-                Incursion wave <span className="text-gold">{w.number}</span>
+                Wave <span className="text-gold">{w.number}</span>
               </h2>
               <span className="chip border-reactor/40 text-reactor">
-                {sealed} of {all.length} sealed
+                {solved} of {all.length} solved
               </span>
             </div>
             <CardGrid items={items} solved={solvedByUs} count={solveCount} now={now} onOpen={setOpenId} />
@@ -133,14 +133,14 @@ function CardGrid(props: { items: ViewChallenge[]; solved: Set<string>; count: (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {props.items.map((c, i) => (
         <motion.div key={c.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 8) * 0.04 }}>
-          <BreachCard c={c} solved={props.solved.has(c.id)} squads={props.count(c.id)} now={props.now} onOpen={() => props.onOpen(c.id)} />
+          <BreachCard c={c} solved={props.solved.has(c.id)} teams={props.count(c.id)} now={props.now} onOpen={() => props.onOpen(c.id)} />
         </motion.div>
       ))}
     </div>
   );
 }
 
-function BreachCard({ c, solved, squads, now, onOpen }: { c: ViewChallenge; solved: boolean; squads: number; now: number; onOpen: () => void }) {
+function BreachCard({ c, solved, teams, now, onOpen }: { c: ViewChallenge; solved: boolean; teams: number; now: number; onOpen: () => void }) {
   const { view } = useBackend();
   const t = themeMeta(c.theme);
   const att = attemptInfo(c, view.me!.teamId!, view.submissions);
@@ -150,7 +150,7 @@ function BreachCard({ c, solved, squads, now, onOpen }: { c: ViewChallenge; solv
     <button
       onClick={onOpen}
       className={`plate group flex h-full w-full flex-col overflow-hidden text-left transition hover:-translate-y-0.5 hover:border-white/25 ${solved ? "ring-1 ring-reactor/60" : ""}`}
-      aria-label={`${c.title}, ${c.points} Power${solved ? ", sealed" : ""}`}
+      aria-label={`${c.title}, ${c.points} points${solved ? ", solved" : ""}`}
       data-testid="breach-card"
     >
       <div className="relative flex items-start gap-3 px-4 py-3" style={{ background: `linear-gradient(100deg, ${t.tint}40, ${t.tint}10 70%, transparent)` }}>
@@ -178,11 +178,11 @@ function BreachCard({ c, solved, squads, now, onOpen }: { c: ViewChallenge; solv
         <div className="mt-auto pt-4 text-sm">
           {solved ? (
             <span className="flex items-center gap-1.5 font-semibold text-reactor">
-              <Icon.Check /> Sealed by your squad
+              <Icon.Check /> Solved by your team
             </span>
           ) : (
             <span className="text-steel/60">
-              {squads} squad{squads === 1 ? "" : "s"} sealed
+              {teams} team{teams === 1 ? "" : "s"} solved
             </span>
           )}
         </div>
@@ -212,10 +212,10 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
       title: `Open hint ${i + 1}?`,
       body: (
         <>
-          Spend <strong className="text-gold">{cost} Power</strong> to open hint {i + 1}? Your whole squad will see it.
+          Spend <strong className="text-gold">{cost} points</strong> to open hint {i + 1}? Your whole team will see it.
         </>
       ),
-      confirmLabel: `Spend ${cost} Power`,
+      confirmLabel: `Spend ${cost} points`,
     });
     if (ok) await run(() => actions.unlockHint(c.id, i), `Hint ${i + 1} opened.`);
   };
@@ -226,7 +226,7 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
     const r = await run(() => actions.submitFlag(c.id, flag));
     if (!r) return;
     setFlag("");
-    if (r.alreadySolved) toast("info", "Your squad already sealed this breach.");
+    if (r.alreadySolved) toast("info", "Your team already solved this challenge.");
     else if (r.correct) fireSeal(r.title, r.points);
     else fireWrong();
   };
@@ -248,13 +248,13 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <ThemeChip theme={c.theme} />
               <TypeChip typeId={c.typeId} />
-              <span className="chip border-gold/40 font-display text-base text-gold">{c.points} Power</span>
+              <span className="chip border-gold/40 font-display text-base text-gold">{c.points} points</span>
             </div>
           </div>
         </div>
       }
     >
-      <p className="whitespace-pre-line text-steel">{c.description || "No briefing for this breach."}</p>
+      <p className="whitespace-pre-line text-steel">{c.description || "No briefing for this challenge."}</p>
       <p className="mt-3 text-xs italic" style={{ color: t.tint }}>
         Intel: {t.intel}
       </p>
@@ -283,7 +283,7 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
                 {h.unlocked ? (
                   <>
                     <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-gold">
-                      <Icon.Unlock size={14} /> Hint {i + 1} · −{h.cost} Power · opened by {nameOf(h.unlockedBy)}
+                      <Icon.Unlock size={14} /> Hint {i + 1} · −{h.cost} points · opened by {nameOf(h.unlockedBy)}
                       {h.unlockedAt ? ` at ${clockTime(h.unlockedAt)}` : ""}
                     </div>
                     <p className="mt-1 text-white">{h.text}</p>
@@ -294,7 +294,7 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
                       <Icon.Lock size={16} /> Hint {i + 1} is locked
                     </span>
                     <button className="btn-ghost btn-sm" onClick={() => openHint(i)} disabled={busy || phase === "ended"}>
-                      Open for {h.cost} Power
+                      Open for {h.cost} points
                     </button>
                   </div>
                 )}
@@ -310,20 +310,24 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
             <strong className={out ? "" : "text-white"}>
               {att.left} of {att.limit}
             </strong>{" "}
-            attempts left for your squad
+            attempts left for your team
           </p>
         )}
         {solved ? (
           <div className="flex items-center gap-2 rounded-md bg-reactor/10 px-4 py-3 font-semibold text-reactor">
-            <Icon.Check /> Sealed by your squad. Nice work.
+            <Icon.Check /> Solved by your team. Nice work.
           </div>
         ) : phase === "idle" ? (
-          <Notice>Flags open when the Doomsday Clock starts.</Notice>
+          <Notice>Flags open when the timer starts.</Notice>
         ) : phase === "ended" ? (
           <Notice>Time's up.</Notice>
         ) : out ? (
-          <Notice danger>Out of attempts. Command can grant more.</Notice>
+          <Notice danger>Out of attempts. An admin can grant more.</Notice>
         ) : (
+          <>
+          <p className="mb-2 text-xs text-steel/60">
+            Flag format: <code className="font-mono text-reactor">IAMDOOM{"{...}"}</code>
+          </p>
           <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
             <label htmlFor="flag" className="sr-only">
               Flag
@@ -331,7 +335,7 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
             <input
               id="flag"
               className="input font-mono"
-              placeholder="DC{…}"
+              placeholder="IAMDOOM{…}"
               autoComplete="off"
               spellCheck={false}
               value={flag}
@@ -339,9 +343,10 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
               maxLength={500}
             />
             <button className="btn-primary shrink-0" disabled={busy || !flag.trim()}>
-              {busy ? "Checking…" : "Seal breach"}
+              {busy ? "Checking…" : "Submit flag"}
             </button>
           </form>
+          </>
         )}
         <button className="mt-4 flex items-center gap-2 text-xs uppercase tracking-wider text-steel/60 hover:text-white" onClick={() => setSound(!sound)} aria-pressed={sound}>
           {sound ? <Icon.Sound size={16} /> : <Icon.Mute size={16} />} Sound {sound ? "on" : "off"}

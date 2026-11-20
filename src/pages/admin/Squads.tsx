@@ -9,7 +9,7 @@ import { useRun, useUi } from "../../hooks/ui";
 import { AdminTitle } from "./CommandApp";
 import { CredentialsModal } from "./Credentials";
 
-export function Squads() {
+export function Teams() {
   const { view, actions } = useBackend();
   const size = view.settings.teamSize;
   const [name, setName] = useState("");
@@ -21,7 +21,7 @@ export function Squads() {
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
-    const r = await run(() => actions.createTeam(name, members), `Squad ${name} created.`);
+    const r = await run(() => actions.createTeam(name, members), `Team ${name} created.`);
     if (r) {
       setCreds(r.credentials);
       setName("");
@@ -43,7 +43,7 @@ export function Squads() {
   return (
     <div>
       <AdminTitle
-        sub={`Up to ${size} members per squad. Each member gets their own login.`}
+        sub={`Up to ${size} members per team. Each member gets their own login.`}
         right={
           <div className="flex gap-2">
             <button className="btn-ghost btn-sm" onClick={() => downloadText("squads-template.csv", "team,member1,member2,member3\nIron Meridian,Ada Lovelace,Grace Hopper,Alan Turing\n", "text/csv")}>
@@ -66,14 +66,14 @@ export function Squads() {
           </div>
         }
       >
-        Squads &amp; members
+        Teams &amp; members
       </AdminTitle>
 
       <form onSubmit={create} className="plate mb-6 grid gap-3 p-5">
-        <h2 className="h-display text-2xl">Create a squad</h2>
+        <h2 className="h-display text-2xl">Create a team</h2>
         <div>
           <label className="label" htmlFor="sq-name">
-            Squad name
+            Team name
           </label>
           <input id="sq-name" className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
         </div>
@@ -88,7 +88,7 @@ export function Squads() {
           ))}
         </div>
         <button className="btn-primary w-fit" disabled={busy || !name.trim() || !members.some((m) => m.trim())}>
-          Create squad
+          Create team
         </button>
       </form>
 
@@ -97,7 +97,7 @@ export function Squads() {
           <SquadCard key={t.id} t={t} onCreds={setCreds} />
         ))}
       </div>
-      {!view.teams.length && <p className="text-steel/60">No squads yet.</p>}
+      {!view.teams.length && <p className="text-steel/60">No teams yet.</p>}
 
       <CredentialsModal creds={creds} onClose={() => setCreds(null)} />
     </div>
@@ -122,10 +122,10 @@ function SquadCard({ t, onCreds }: { t: ViewTeam; onCreds: (c: Credential[]) => 
             className="flex flex-1 gap-2"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (await run(() => actions.renameTeam(t.id, rename), "Squad renamed.")) setRename(null);
+              if (await run(() => actions.renameTeam(t.id, rename), "Team renamed.")) setRename(null);
             }}
           >
-            <input className="input" aria-label="New squad name" value={rename} onChange={(e) => setRename(e.target.value)} autoFocus />
+            <input className="input" aria-label="New team name" value={rename} onChange={(e) => setRename(e.target.value)} autoFocus />
             <button className="btn-primary btn-sm" disabled={busy}>
               Save
             </button>
@@ -140,8 +140,8 @@ function SquadCard({ t, onCreds }: { t: ViewTeam; onCreds: (c: Credential[]) => 
           className="btn-ghost btn-sm text-breach"
           aria-label={`Delete ${t.name}`}
           onClick={async () => {
-            if (await confirm({ title: `Delete ${t.name}?`, body: "Removes the squad, its members, solves and hint spending. This can't be undone.", danger: true, confirmLabel: "Delete squad" }))
-              await run(() => actions.deleteTeam(t.id), "Squad deleted.");
+            if (await confirm({ title: `Delete ${t.name}?`, body: "Removes the team, its members, solves and hint spending. This can't be undone.", danger: true, confirmLabel: "Delete team" }))
+              await run(() => actions.deleteTeam(t.id), "Team deleted.");
           }}
         >
           <Icon.Trash />
@@ -172,7 +172,7 @@ function SquadCard({ t, onCreds }: { t: ViewTeam; onCreds: (c: Credential[]) => 
                 aria-label={`Remove ${m.displayName}`}
                 disabled={busy}
                 onClick={async () => {
-                  if (await confirm({ title: `Remove ${m.displayName}?`, body: "Their solves stay with the squad.", danger: true, confirmLabel: "Remove" })) await run(() => actions.removeMember(m.id), "Member removed.");
+                  if (await confirm({ title: `Remove ${m.displayName}?`, body: "Their solves stay with the team.", danger: true, confirmLabel: "Remove" })) await run(() => actions.removeMember(m.id), "Member removed.");
                 }}
               >
                 <Icon.X size={14} />

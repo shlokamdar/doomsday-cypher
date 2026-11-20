@@ -56,12 +56,12 @@ export const BREACH_HEADER = ["title", "type", "theme", "points", "flag", "descr
 export const BREACH_TEMPLATE = toCsv([
   BREACH_HEADER,
   [
-    "Example breach",
+    "Example challenge",
     "Recruit",
     "Signal",
     100,
-    "REPLACE_WITH_YOUR_FLAG",
-    "Describe the breach here.",
+    "IAMDOOM{replace_me}",
+    "Describe the challenge here.",
     "Optional hint text",
     10,
     0,
@@ -89,7 +89,7 @@ export function parseFiles(value: string): FileLink[] {
     });
 }
 
-/** Parses breach imports from CSV (header required) or JSON (array of objects with the same keys). */
+/** Parses challenge imports from CSV (header required) or JSON (array of objects with the same keys). */
 export function parseBreachImport(
   text: string,
   types: ChallengeType[],
@@ -169,7 +169,7 @@ export function parseBreachImport(
   return { rows, errors };
 }
 
-/** Squad import: `team,member1,member2,member3` (header optional). */
+/** Team import: `team,member1,member2,member3` (header optional). */
 export function parseSquadCsv(text: string, teamSize: number): { rows: { team: string; members: string[] }[]; errors: RowError[] } {
   const errors: RowError[] = [];
   let table: string[][];
@@ -184,7 +184,7 @@ export function parseSquadCsv(text: string, teamSize: number): { rows: { team: s
     const rowNo = i + 1 + start;
     const team = (cells[0] ?? "").trim();
     const members = cells.slice(1).map((c) => c.trim()).filter(Boolean);
-    if (!team) errors.push({ row: rowNo, message: "Squad name is required." });
+    if (!team) errors.push({ row: rowNo, message: "Team name is required." });
     else if (!members.length) errors.push({ row: rowNo, message: "At least one member is required." });
     else if (members.length > teamSize) errors.push({ row: rowNo, message: `Too many members (max ${teamSize}).` });
     else rows.push({ team, members });

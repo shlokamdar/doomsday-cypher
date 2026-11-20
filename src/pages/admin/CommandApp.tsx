@@ -5,18 +5,18 @@ import { Dashboard } from "./Dashboard";
 import { Library } from "./Library";
 import { PostBreaches } from "./PostBreaches";
 import { AdminSettings } from "./Settings";
-import { Squads } from "./Squads";
+import { Teams } from "./Squads";
 import { Submissions } from "./Submissions";
 import { AdminTransmissions } from "./Transmissions";
 
 const NAV = [
-  { to: "/command", label: "Dashboard", icon: Icon.Grid, end: true },
-  { to: "/command/post", label: "Post breaches", icon: Icon.Send },
-  { to: "/command/library", label: "Breach library", icon: Icon.Library },
-  { to: "/command/squads", label: "Squads & members", icon: Icon.Users },
-  { to: "/command/transmissions", label: "Transmissions", icon: Icon.Bell },
-  { to: "/command/submissions", label: "Submissions", icon: Icon.List },
-  { to: "/command/settings", label: "Settings", icon: Icon.Gear },
+  { to: "/admin", label: "Dashboard", icon: Icon.Grid, end: true },
+  { to: "/admin/post", label: "Post challenges", icon: Icon.Send },
+  { to: "/admin/library", label: "Challenge library", icon: Icon.Library },
+  { to: "/admin/teams", label: "Teams & members", icon: Icon.Users },
+  { to: "/admin/announcements", label: "Announcements", icon: Icon.Bell },
+  { to: "/admin/submissions", label: "Submissions", icon: Icon.List },
+  { to: "/admin/settings", label: "Settings", icon: Icon.Gear },
 ];
 
 export default function CommandApp() {
@@ -24,14 +24,14 @@ export default function CommandApp() {
     <div className="mx-auto grid w-full max-w-[1400px] gap-0 md:grid-cols-[230px_1fr]">
       <aside className="border-b border-white/5 bg-[#0B0E13] md:min-h-[calc(100vh-64px)] md:border-b-0 md:border-r no-print">
         <div className="px-4 pb-2 pt-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.35em] text-steel/50">Command</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.35em] text-steel/50">Admin</div>
           {!IS_REMOTE && (
             <span className="chip mt-2 border-gold/40 text-gold" title="Demo mode: data is saved in this browser only. Other devices won't see changes.">
               <Icon.Info size={12} /> This browser only
             </span>
           )}
         </div>
-        <nav className="scrollbar-thin flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:overflow-visible" aria-label="Command">
+        <nav className="scrollbar-thin flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:overflow-visible" aria-label="Admin">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
@@ -52,8 +52,8 @@ export default function CommandApp() {
           <Route index element={<Dashboard />} />
           <Route path="post" element={<PostBreaches />} />
           <Route path="library" element={<Library />} />
-          <Route path="squads" element={<Squads />} />
-          <Route path="transmissions" element={<AdminTransmissions />} />
+          <Route path="teams" element={<Teams />} />
+          <Route path="announcements" element={<AdminTransmissions />} />
           <Route path="submissions" element={<Submissions />} />
           <Route path="settings" element={<AdminSettings />} />
         </Routes>

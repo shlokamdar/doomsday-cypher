@@ -8,23 +8,16 @@ seal breaches (challenges) to earn Power (points). Most Power when the Doomsday 
 
 All characters, emblems and illustrations are original SVG/CSS. No franchise names or likenesses.
 
-| UI word | Means |
-|---|---|
-| Breach | challenge |
-| Incursion wave | a wave of exactly 5 breaches |
-| Power | points |
-| Strike Squad | team |
-| The War Table | scoreboard |
-| Command | admin |
-| Transmission | announcement |
-| Doomsday Clock | the 3-hour timer |
+The UI uses plain CTF words: Challenges, Waves (exactly 5 challenges), Points, Teams, Scoreboard,
+Admin, Announcements and the Timer. Flags look like **`IAMDOOM{...}`**.
 
 ![Home](docs/screenshots/02-home.png)
 
 ## Features
 
 **Players**
-- Log in by picking your squad, tapping your name and entering your own password (forced change on first login).
+- Log in by picking your team, tapping your name and entering your password. Forcing people to replace a temporary
+  password on first login is a setting (Admin → Settings), off by default.
 - Breaches page: squad header with emblem, count-up Power, rank, member chips and the Doomsday Clock;
   latest transmission; category filters; single breaches then incursion waves ("x of 5 sealed").
 - Breach window: briefing, files, hints with a confirm step (cost charged once, visible to the whole
@@ -60,7 +53,7 @@ Both modes run **the same rules engine** (`src/core/engine.ts`). The server load
 action, and writes back with a Lua compare-and-set on a version number (retried up to 6 times), so
 concurrent submissions and admin edits never overwrite each other.
 
-**Demo logins** (demo data only; the demo admin must change its password on first login):
+**Demo logins** (demo data only):
 
 - Command: `admin` / `command-demo-2026`
 - Players: any demo member (e.g. Iron Meridian → Kira Valdez) / `squad-demo-2026`

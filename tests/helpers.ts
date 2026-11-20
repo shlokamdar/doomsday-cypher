@@ -14,7 +14,7 @@ export const T0 = Date.UTC(2026, 10, 20, 9, 0, 0);
 
 /** Random flags generated at test time: no plaintext flag is ever committed. */
 export function randomFlag() {
-  return `DC{${crypto.randomUUID().replace(/-/g, "")}}`;
+  return `IAMDOOM{${crypto.randomUUID().replace(/-/g, "")}}`;
 }
 
 export function input(over: Partial<ChallengeInput> = {}): ChallengeInput {
@@ -58,6 +58,7 @@ export async function adminWorld() {
   const w = world();
   const admin = await w.backend();
   await admin.actions.login(null, "admin", ADMIN_PW);
+  // Exercise the full flow: the fresh admin still has a temporary password and changes it.
   await admin.actions.changePassword(ADMIN_PW, ADMIN_PW2);
   return { ...w, admin };
 }

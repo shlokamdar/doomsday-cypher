@@ -9,9 +9,9 @@ export function TransmissionsPage() {
   const now = useNow(30000);
   return (
     <Page className="max-w-3xl">
-      <div className="text-xs font-semibold uppercase tracking-[0.3em] text-reactor">From Command</div>
-      <h1 className="h-display mb-6 text-5xl">Transmissions</h1>
-      {view.notifications.length === 0 && <p className="text-steel/70">Radio silence. Nothing from Command yet.</p>}
+      <div className="text-xs font-semibold uppercase tracking-[0.3em] text-reactor">From the organisers</div>
+      <h1 className="h-display mb-6 text-5xl">Announcements</h1>
+      {view.notifications.length === 0 && <p className="text-steel/70">Radio silence. Nothing from the organisers yet.</p>}
       <ol className="grid gap-3">
         {view.notifications.map((n, i) => (
           <motion.li

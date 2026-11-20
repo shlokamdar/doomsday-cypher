@@ -23,8 +23,8 @@ export function Dashboard() {
   const accuracy = subs.length ? Math.round((correct.length / subs.length) * 100) : 0;
   const count = (st: string) => view.challenges.filter((c) => c.status === st).length;
   const userName = (id: string) => view.users?.find((u) => u.id === id)?.displayName ?? "Former member";
-  const teamName = (id: string) => view.teams.find((t) => t.id === id)?.name ?? "Deleted squad";
-  const chTitle = (id: string) => view.challenges.find((c) => c.id === id)?.title ?? "Deleted breach";
+  const teamName = (id: string) => view.teams.find((t) => t.id === id)?.name ?? "Deleted team";
+  const chTitle = (id: string) => view.challenges.find((c) => c.id === id)?.title ?? "Deleted challenge";
 
   const act = async (title: string, body: string, fn: () => Promise<unknown>, ok: string, danger = false) => {
     if (await confirm({ title, body, danger, confirmLabel: title })) await run(fn, ok);
@@ -52,10 +52,10 @@ export function Dashboard() {
       <section className="plate mb-5 flex flex-wrap items-center justify-between gap-5 p-5">
         <DoomsdayClock size="xl" />
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" disabled={busy} onClick={() => act(`Start ${s.durationMinutes / 60}-hour clock`, phase === "running" ? "The clock is already running. This restarts it from now." : `Flags open now and close in ${s.durationMinutes} minutes.`, () => actions.clockStart(), "Doomsday Clock started.")}>
+          <button className="btn-primary" disabled={busy} onClick={() => act(`Start ${s.durationMinutes / 60}-hour clock`, phase === "running" ? "The clock is already running. This restarts it from now." : `Flags open now and close in ${s.durationMinutes} minutes.`, () => actions.clockStart(), "Timer started.")}>
             Start {s.durationMinutes / 60}-hour clock
           </button>
-          <button className="btn-gold" disabled={busy || s.startsAt === null} onClick={() => act("+10 minutes", "Add 10 minutes to the Doomsday Clock for every squad?", () => actions.clockAddMinutes(10), "+10 minutes added.")}>
+          <button className="btn-gold" disabled={busy || s.startsAt === null} onClick={() => act("+10 minutes", "Add 10 minutes to the timer for every team?", () => actions.clockAddMinutes(10), "+10 minutes added.")}>
             +10 minutes
           </button>
           <button className="btn-danger" disabled={busy || phase !== "running"} onClick={() => act("End now", "Stop the clock now? Flags close immediately for everyone.", () => actions.clockEnd(), "Clock ended.", true)}>
@@ -68,8 +68,8 @@ export function Dashboard() {
       </section>
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Squads · players" value={`${view.teams.length} · ${players.length}`} />
-        <Kpi label="Active (last 15 min)" value={`${activeTeams} squads`} />
+        <Kpi label="Teams · players" value={`${view.teams.length} · ${players.length}`} />
+        <Kpi label="Active (last 15 min)" value={`${activeTeams} teams`} />
         <Kpi label="Solves · accuracy · hints" value={`${correct.length} · ${accuracy}% · ${view.hintUnlocks.length}`} />
         <Kpi label="Live · scheduled · drafts" value={`${count("live")} · ${count("scheduled")} · ${count("draft")}`} />
       </div>
@@ -99,7 +99,7 @@ export function Dashboard() {
           </ul>
         </section>
         <section className="plate p-5">
-          <h2 className="h-display mb-3 text-2xl">Top squads</h2>
+          <h2 className="h-display mb-3 text-2xl">Top teams</h2>
           <ol className="grid gap-2">
             {standings.slice(0, 6).map((r) => (
               <li key={r.teamId} className="flex items-center gap-3">

@@ -17,7 +17,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
     e.preventDefault();
     if (pw !== pw2) return;
     const ok = await run(() => actions.changePassword(oldPw, pw), "Password changed.");
-    if (ok !== undefined) navigate(view.me?.role === "admin" ? "/command" : "/breaches");
+    if (ok !== undefined) navigate(view.me?.role === "admin" ? "/admin" : "/challenges");
   };
 
   return (

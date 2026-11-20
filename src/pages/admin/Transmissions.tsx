@@ -16,7 +16,7 @@ export function AdminTransmissions() {
 
   const post = async (e: FormEvent) => {
     e.preventDefault();
-    if (await run(() => actions.postNotification(title, body, level), "Transmission sent.")) {
+    if (await run(() => actions.postNotification(title, body, level), "Announcement sent.")) {
       setTitle("");
       setBody("");
       setLevel("info");
@@ -25,7 +25,7 @@ export function AdminTransmissions() {
 
   return (
     <div>
-      <AdminTitle sub="Players get a toast and an unread badge.">Transmissions</AdminTitle>
+      <AdminTitle sub="Players get a toast and an unread badge.">Announcements</AdminTitle>
       <form onSubmit={post} className="plate mb-6 grid gap-3 p-5">
         <div>
           <label className="label" htmlFor="tx-title">
@@ -49,7 +49,7 @@ export function AdminTransmissions() {
             ))}
           </fieldset>
           <button className="btn-primary" disabled={busy || !title.trim()}>
-            <Icon.Send size={16} /> Send transmission
+            <Icon.Send size={16} /> Send announcement
           </button>
         </div>
       </form>
@@ -66,7 +66,7 @@ export function AdminTransmissions() {
               className="btn-ghost btn-sm"
               aria-label={`Delete ${n.title}`}
               onClick={async () => {
-                if (await confirm({ title: "Delete transmission?", body: n.title, danger: true, confirmLabel: "Delete" })) await run(() => actions.deleteNotification(n.id), "Transmission deleted.");
+                if (await confirm({ title: "Delete announcement?", body: n.title, danger: true, confirmLabel: "Delete" })) await run(() => actions.deleteNotification(n.id), "Announcement deleted.");
               }}
             >
               <Icon.Trash />

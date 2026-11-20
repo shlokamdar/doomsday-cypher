@@ -9,7 +9,7 @@ const QUIPS = [
   "The Sovereign laughs at your flag.",
   "That timeline is a dead end.",
   "Wrong world. Try another.",
-  "The breach widens. Not your best move.",
+  "The challenge widens. Not your best move.",
   "Somewhere, a multiverse just sighed.",
   "Close? The Sovereign says no.",
   "Even the iron mask facepalmed.",
@@ -165,10 +165,10 @@ export function SealedPopup() {
               className="mt-2 font-display text-6xl text-gold sm:text-7xl"
               style={{ textShadow: "4px 4px 0 #07090D, 0 0 30px rgba(242,179,61,.7)" }}
             >
-              +{data.points} Power
+              +{data.points} points
             </motion.div>
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }} className="mt-2 max-w-md text-lg text-white">
-              Your squad sealed <strong className="text-reactor">{data.title}</strong>
+              Your team solved <strong className="text-reactor">{data.title}</strong>
             </motion.p>
           </div>
         </motion.div>

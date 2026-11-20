@@ -67,12 +67,12 @@ function time(v: unknown, name: string): number {
 
 function findChallenge(db: DB, id: unknown): Challenge {
   const c = db.challenges.find((x) => x.id === id);
-  if (!c) throw new UserError("Breach not found.", 404);
+  if (!c) throw new UserError("Challenge not found.", 404);
   return c;
 }
 function findTeam(db: DB, id: unknown): Team {
   const t = db.teams.find((x) => x.id === id);
-  if (!t) throw new UserError("Squad not found.", 404);
+  if (!t) throw new UserError("Team not found.", 404);
   return t;
 }
 function notify(db: DB, now: number, title: string, body: string, level: NotificationLevel = "info") {
@@ -117,12 +117,12 @@ async function newMember(db: DB, team: Team, displayName: string, now: number, t
 }
 
 async function createTeamIn(db: DB, nameRaw: unknown, membersRaw: unknown, now: number): Promise<{ teamId: string; credentials: Credential[] }> {
-  const name = str(nameRaw, "Squad name", 60);
-  if (db.teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) throw new UserError(`A squad called "${name}" already exists.`);
+  const name = str(nameRaw, "Team name", 60);
+  if (db.teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) throw new UserError(`A team called "${name}" already exists.`);
   if (!Array.isArray(membersRaw)) throw new UserError("Members must be a list.");
   const members = membersRaw.map((m, i) => str(m, `Member ${i + 1}`, 60, true)).filter(Boolean);
   if (!members.length) throw new UserError("Add at least one member.");
-  if (members.length > db.settings.teamSize) throw new UserError(`Squads have at most ${db.settings.teamSize} members.`);
+  if (members.length > db.settings.teamSize) throw new UserError(`Teams have at most ${db.settings.teamSize} members.`);
   const team: Team = { id: newId("s-"), name, createdAt: now };
   db.teams.push(team);
   const taken = new Set<string>();
@@ -132,7 +132,7 @@ async function createTeamIn(db: DB, nameRaw: unknown, membersRaw: unknown, now: 
 }
 
 async function buildChallenge(db: DB, raw: any, now: number, existing?: Challenge): Promise<Challenge> {
-  if (!raw || typeof raw !== "object") throw new UserError("Breach details are missing.");
+  if (!raw || typeof raw !== "object") throw new UserError("Challenge details are missing.");
   const title = str(raw.title, "Title", 120);
   const points = int(raw.points, "Points", 1, 100000);
   const typeId = str(raw.typeId, "Category", 60);
@@ -141,7 +141,7 @@ async function buildChallenge(db: DB, raw: any, now: number, existing?: Challeng
   if (!THEME_IDS.includes(theme as any)) throw new UserError("Unknown theme.");
   const description = str(raw.description ?? "", "Description", 5000, true);
   const caseSensitive = raw.caseSensitive === undefined ? false : bool(raw.caseSensitive, "Case-sensitive");
-  const maxAttempts = int(raw.maxAttempts ?? 0, "Attempts per squad", 0, 1000);
+  const maxAttempts = int(raw.maxAttempts ?? 0, "Attempts per team", 0, 1000);
   if (!Array.isArray(raw.hints ?? [])) throw new UserError("Hints must be a list.");
   const hints = (raw.hints ?? []).map((h: any, i: number) => ({
     text: str(h?.text, `Hint ${i + 1}`, 1000),
@@ -219,7 +219,7 @@ export const METHODS: Record<string, MethodSpec> = {
       const username = typeof usernameRaw === "string" ? usernameRaw.trim().toLowerCase() : "";
       const password = typeof passwordRaw === "string" ? passwordRaw : "";
       const user = db.users.find((u) => u.username === username);
-      const fail = () => new UserError("Wrong squad, name or password.", 401);
+      const fail = () => new UserError("Wrong team, name or password.", 401);
       if (!user) {
         await hashPassword(password, newSalt()); // keep timing similar
         throw fail();
@@ -228,7 +228,7 @@ export const METHODS: Record<string, MethodSpec> = {
       const okPw = safeEqual(hash, user.passwordHash);
       const okRole = teamId === null || teamId === undefined ? user.role === "admin" : user.role === "player" && user.teamId === teamId;
       if (!okPw || !okRole) throw fail();
-      return { __session: user.id, mustChangePassword: user.mustChangePassword };
+      return { __session: user.id, mustChangePassword: user.mustChangePassword && db.settings.forcePasswordChange };
     },
   },
   changePassword: {
@@ -255,9 +255,9 @@ export const METHODS: Record<string, MethodSpec> = {
       const user = actor!;
       const teamId = user.teamId!;
       const c = db.challenges.find((x) => x.id === challengeId);
-      if (!c || !liveFor(c, now)) throw new UserError("Breach not found.", 404);
+      if (!c || !liveFor(c, now)) throw new UserError("Challenge not found.", 404);
       const phase = clockPhase(db.settings, now);
-      if (phase === "idle") throw new UserError("Flags open when the Doomsday Clock starts.");
+      if (phase === "idle") throw new UserError("Flags open when the timer starts.");
       if (phase === "ended") throw new UserError("Time's up.");
       const value = typeof valueRaw === "string" ? valueRaw.trim() : "";
       if (!value) throw new UserError("Enter a flag.");
@@ -266,10 +266,10 @@ export const METHODS: Record<string, MethodSpec> = {
       if (teamSolved(db, teamId, c.id)) {
         return { correct: true, alreadySolved: true, points: 0, title: c.title, attemptsLeft: info().left };
       }
-      if (info().left === 0) throw new UserError("Out of attempts. Command can grant more.");
+      if (info().left === 0) throw new UserError("Out of attempts. An admin can grant more.");
       const recent = db.submissions.filter((s) => s.teamId === teamId && s.challengeId === c.id && s.at > now - MINUTE).length;
       if (recent >= db.settings.submissionsPerMinute)
-        throw new UserError(`Slow down: your squad can try ${db.settings.submissionsPerMinute} flags per minute on this breach.`, 429);
+        throw new UserError(`Slow down: your team can try ${db.settings.submissionsPerMinute} flags per minute on this challenge.`, 429);
       const hash = await hashFlag(value, c.caseSensitive, c.flagSalt);
       const correct = safeEqual(hash, c.flagHash);
       db.submissions.push({
@@ -289,7 +289,7 @@ export const METHODS: Record<string, MethodSpec> = {
     fn({ db, actor, now }, challengeId: unknown, indexRaw: unknown) {
       const user = actor!;
       const c = db.challenges.find((x) => x.id === challengeId);
-      if (!c || !liveFor(c, now)) throw new UserError("Breach not found.", 404);
+      if (!c || !liveFor(c, now)) throw new UserError("Challenge not found.", 404);
       if (clockPhase(db.settings, now) === "ended") throw new UserError("Time's up.");
       const index = int(indexRaw, "Hint", 0, c.hints.length - 1);
       const existing = db.hintUnlocks.find((h) => h.teamId === user.teamId && h.challengeId === c.id && h.index === index);
@@ -299,13 +299,13 @@ export const METHODS: Record<string, MethodSpec> = {
     },
   },
 
-  /* ---- Command: clock ---- */
+  /* ---- Admin: clock ---- */
   clockStart: {
     auth: "admin",
     fn({ db, now }) {
       db.settings.startsAt = now;
       db.settings.endsAt = now + db.settings.durationMinutes * MINUTE;
-      notify(db, now, "The Doomsday Clock is ticking", `${db.settings.durationMinutes / 60} hours on the clock. Seal every breach you can.`, "important");
+      notify(db, now, "The Timer is ticking", `${db.settings.durationMinutes / 60} hours on the clock. Solve every challenge you can.`, "important");
     },
   },
   clockAddMinutes: {
@@ -314,7 +314,7 @@ export const METHODS: Record<string, MethodSpec> = {
       const m = int(minutes, "Minutes", 1, 600);
       if (db.settings.startsAt === null || db.settings.endsAt === null) throw new UserError("Start the clock first.");
       db.settings.endsAt = Math.max(db.settings.endsAt, now) + m * MINUTE;
-      notify(db, now, `+${m} minutes on the Doomsday Clock`, "Command has bought the multiverse a little more time.");
+      notify(db, now, `+${m} minutes on the timer`, "The organisers added more time to the clock.");
     },
   },
   clockEnd: {
@@ -323,7 +323,7 @@ export const METHODS: Record<string, MethodSpec> = {
       if (db.settings.startsAt === null) throw new UserError("The clock has not started.");
       db.settings.endsAt = Math.min(db.settings.endsAt ?? now, now);
       if (db.settings.startsAt > now) db.settings.startsAt = now;
-      notify(db, now, "Time's up", "The Doomsday Clock has hit zero. Flags are closed.", "important");
+      notify(db, now, "Time's up", "The Timer has hit zero. Flags are closed.", "important");
     },
   },
   clockReset: {
@@ -334,7 +334,7 @@ export const METHODS: Record<string, MethodSpec> = {
     },
   },
 
-  /* ---- Command: breaches ---- */
+  /* ---- Admin: challenges ---- */
   saveChallenge: {
     auth: "admin",
     async fn({ db, now }, input: unknown) {
@@ -349,14 +349,14 @@ export const METHODS: Record<string, MethodSpec> = {
   postWave: {
     auth: "admin",
     async fn({ db, now }, inputs: unknown, release: unknown) {
-      if (!Array.isArray(inputs) || inputs.length !== 5) throw new UserError("An incursion wave has exactly 5 breaches.");
+      if (!Array.isArray(inputs) || inputs.length !== 5) throw new UserError("An wave has exactly 5 challenges.");
       const releaseAt = releaseTime(release, now);
       const built: Challenge[] = [];
       for (let i = 0; i < 5; i++) {
         try {
           built.push(await buildChallenge(db, { ...(inputs[i] as object), id: undefined }, now));
         } catch (e) {
-          throw new UserError(`Breach ${i + 1}: ${(e as Error).message}`);
+          throw new UserError(`Challenge ${i + 1}: ${(e as Error).message}`);
         }
       }
       const number = db.waves.reduce((m, w) => Math.max(m, w.number), 0) + 1;
@@ -367,7 +367,7 @@ export const METHODS: Record<string, MethodSpec> = {
         c.releaseAt = releaseAt;
         db.challenges.push(c);
       }
-      if (releaseAt === now) notify(db, now, `Incursion wave ${number} is live`, "Five new breaches have opened across the multiverse.", "important");
+      if (releaseAt === now) notify(db, now, `Wave ${number} is live`, "Five new challenges have opened across the multiverse.", "important");
       return { waveId: wave.id, number, ids: built.map((c) => c.id) };
     },
   },
@@ -378,7 +378,7 @@ export const METHODS: Record<string, MethodSpec> = {
       const c = await buildChallenge(db, { ...(input as object), id: undefined }, now);
       c.releaseAt = releaseAt;
       db.challenges.push(c);
-      if (releaseAt === now) notify(db, now, `New breach: ${c.title}`, `A ${c.points}-Power breach has opened.`);
+      if (releaseAt === now) notify(db, now, `New challenge: ${c.title}`, `A ${c.points}-Power challenge has opened.`);
       return { id: c.id };
     },
   },
@@ -388,7 +388,7 @@ export const METHODS: Record<string, MethodSpec> = {
       const c = findChallenge(db, id);
       c.releaseAt = now;
       c.hidden = false;
-      notify(db, now, `New breach: ${c.title}`, `A ${c.points}-Power breach has opened.`);
+      notify(db, now, `New challenge: ${c.title}`, `A ${c.points}-Power challenge has opened.`);
     },
   },
   schedule: {
@@ -423,7 +423,7 @@ export const METHODS: Record<string, MethodSpec> = {
         c.releaseAt = now;
         c.hidden = false;
       }
-      notify(db, now, `Incursion wave ${wave.number} is live`, `${cs.length} new breaches have opened across the multiverse.`, "important");
+      notify(db, now, `Wave ${wave.number} is live`, `${cs.length} new challenges have opened across the multiverse.`, "important");
     },
   },
   deleteChallenge: {
@@ -440,12 +440,12 @@ export const METHODS: Record<string, MethodSpec> = {
     auth: "admin",
     fn({ db }, id: unknown, n: unknown) {
       const c = findChallenge(db, id);
-      if (!c.maxAttempts) throw new UserError("This breach already has unlimited attempts.");
+      if (!c.maxAttempts) throw new UserError("This challenge already has unlimited attempts.");
       c.bonusAttempts += int(n ?? 3, "Attempts", 1, 100);
     },
   },
 
-  /* ---- Command: squads ---- */
+  /* ---- Admin: teams ---- */
   createTeam: {
     auth: "admin",
     fn({ db, now }, name: unknown, members: unknown) {
@@ -473,8 +473,8 @@ export const METHODS: Record<string, MethodSpec> = {
     auth: "admin",
     fn({ db }, teamId: unknown, name: unknown) {
       const t = findTeam(db, teamId);
-      const n = str(name, "Squad name", 60);
-      if (db.teams.some((x) => x.id !== t.id && x.name.toLowerCase() === n.toLowerCase())) throw new UserError(`A squad called "${n}" already exists.`);
+      const n = str(name, "Team name", 60);
+      if (db.teams.some((x) => x.id !== t.id && x.name.toLowerCase() === n.toLowerCase())) throw new UserError(`A team called "${n}" already exists.`);
       t.name = n;
     },
   },
@@ -483,7 +483,7 @@ export const METHODS: Record<string, MethodSpec> = {
     fn({ db, now }, teamId: unknown, displayName: unknown) {
       const t = findTeam(db, teamId);
       const count = db.users.filter((u) => u.teamId === t.id).length;
-      if (count >= db.settings.teamSize) throw new UserError(`Squads have at most ${db.settings.teamSize} members.`);
+      if (count >= db.settings.teamSize) throw new UserError(`Teams have at most ${db.settings.teamSize} members.`);
       return newMember(db, t, str(displayName, "Name", 60), now, new Set());
     },
   },
@@ -497,7 +497,7 @@ export const METHODS: Record<string, MethodSpec> = {
       u.passwordHash = await hashPassword(password, u.passwordSalt);
       u.mustChangePassword = true;
       const team = db.teams.find((t) => t.id === u.teamId);
-      return { userId: u.id, teamName: team?.name ?? "Command", displayName: u.displayName, username: u.username, password };
+      return { userId: u.id, teamName: team?.name ?? "Admin", displayName: u.displayName, username: u.username, password };
     },
   },
   removeMember: {
@@ -519,7 +519,7 @@ export const METHODS: Record<string, MethodSpec> = {
     },
   },
 
-  /* ---- Command: transmissions ---- */
+  /* ---- Admin: announcements ---- */
   postNotification: {
     auth: "admin",
     fn({ db, now }, title: unknown, body: unknown, level: unknown) {
@@ -534,7 +534,7 @@ export const METHODS: Record<string, MethodSpec> = {
     },
   },
 
-  /* ---- Command: settings ---- */
+  /* ---- Admin: settings ---- */
   updateSettings: {
     auth: "admin",
     fn({ db }, patch: any) {
@@ -543,7 +543,8 @@ export const METHODS: Record<string, MethodSpec> = {
       if (patch.eventName !== undefined) s.eventName = str(patch.eventName, "Event name", 80);
       if (patch.tagline !== undefined) s.tagline = str(patch.tagline, "Tagline", 160, true);
       if (patch.durationMinutes !== undefined) s.durationMinutes = int(patch.durationMinutes, "Duration", 1, 1440);
-      if (patch.teamSize !== undefined) s.teamSize = int(patch.teamSize, "Squad size", 1, 10);
+      if (patch.teamSize !== undefined) s.teamSize = int(patch.teamSize, "Team size", 1, 10);
+      if (patch.forcePasswordChange !== undefined) s.forcePasswordChange = bool(patch.forcePasswordChange, "Force password change");
       if (patch.submissionsPerMinute !== undefined) s.submissionsPerMinute = int(patch.submissionsPerMinute, "Submissions per minute", 1, 1000);
     },
   },
@@ -581,7 +582,7 @@ export const METHODS: Record<string, MethodSpec> = {
     },
   },
 
-  /* ---- Command: data ---- */
+  /* ---- Admin: data ---- */
   exportBackup: {
     auth: "admin",
     readonly: true,
@@ -605,7 +606,7 @@ export const METHODS: Record<string, MethodSpec> = {
       next.users.push({
         id: newId("u-"),
         username: "admin",
-        displayName: "Command",
+        displayName: "Admin",
         role: "admin",
         teamId: null,
         passwordSalt: salt,
@@ -615,7 +616,7 @@ export const METHODS: Record<string, MethodSpec> = {
       });
       replaceDb(db, next);
       const admin = db.users[0];
-      const credential: Credential = { userId: admin.id, teamName: "Command", displayName: "Command", username: "admin", password };
+      const credential: Credential = { userId: admin.id, teamName: "Admin", displayName: "Admin", username: "admin", password };
       return { credential, __session: admin.id };
     },
   },
@@ -647,9 +648,9 @@ export async function dispatch(db: DB, actorId: string | null, method: string, a
   const actor = actorId ? db.users.find((u) => u.id === actorId) ?? null : null;
   if (spec.auth !== "none") {
     if (!actor) throw new UserError("Please log in again.", 401);
-    if (spec.auth === "admin" && actor.role !== "admin") throw new UserError("Command only.", 403);
-    if (spec.auth === "player" && (actor.role !== "player" || !actor.teamId)) throw new UserError("Only squad members can do that.", 403);
-    if (actor.mustChangePassword && method !== "changePassword") throw new UserError("Change your password first.", 403);
+    if (spec.auth === "admin" && actor.role !== "admin") throw new UserError("Admin only.", 403);
+    if (spec.auth === "player" && (actor.role !== "player" || !actor.teamId)) throw new UserError("Only team members can do that.", 403);
+    if (actor.mustChangePassword && db.settings.forcePasswordChange && method !== "changePassword") throw new UserError("Change your password first.", 403);
   }
   const raw = await spec.fn({ db, actor, now }, ...args);
   let result = raw;

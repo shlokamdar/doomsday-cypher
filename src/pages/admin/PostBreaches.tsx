@@ -38,14 +38,14 @@ export function PostBreaches() {
   };
 
   const postWave = async () => {
-    const r = await run(() => actions.postWave(wave, toRelease(release)), (x) => `Incursion wave ${x.number} ${release.mode === "now" ? "is live" : release.mode === "draft" ? "saved as drafts" : "scheduled"}.`);
+    const r = await run(() => actions.postWave(wave, toRelease(release)), (x) => `Wave ${x.number} ${release.mode === "now" ? "is live" : release.mode === "draft" ? "saved as drafts" : "scheduled"}.`);
     if (r) {
       setWave(Array.from({ length: 5 }, () => blankInput(firstType)));
       setSlot(0);
     }
   };
   const postSingle = async () => {
-    const r = await run(() => actions.postSingle(single, toRelease(release)), release.mode === "now" ? "Breach is live. A transmission went out." : release.mode === "draft" ? "Saved as draft." : "Breach scheduled.");
+    const r = await run(() => actions.postSingle(single, toRelease(release)), release.mode === "now" ? "Challenge is live. A announcement went out." : release.mode === "draft" ? "Saved as draft." : "Challenge scheduled.");
     if (r) {
       setSingle(queue[0] ?? blankInput(firstType));
       setQueue(queue.slice(1));
@@ -55,7 +55,7 @@ export function PostBreaches() {
   return (
     <div>
       <AdminTitle
-        sub="Incursion waves are exactly 5 breaches. Posting live sends a transmission automatically."
+        sub="Waves are exactly 5 challenges. Posting live sends a announcement automatically."
         right={
           <div className="flex flex-wrap gap-2">
             <button className="btn-ghost btn-sm" onClick={() => downloadText("breaches-template.csv", BREACH_TEMPLATE, "text/csv")}>
@@ -78,7 +78,7 @@ export function PostBreaches() {
           </div>
         }
       >
-        Post breaches
+        Post challenges
       </AdminTitle>
 
       {importErrors.length > 0 && (
@@ -97,7 +97,7 @@ export function PostBreaches() {
       <div className="mb-4 flex w-fit rounded-lg border border-white/10 bg-void/60 p-1" role="tablist">
         {(["wave", "single"] as const).map((m) => (
           <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={`rounded-md px-4 py-2 text-sm font-semibold uppercase tracking-wider ${mode === m ? "bg-reactor text-void" : "text-steel hover:text-white"}`}>
-            {m === "wave" ? `Incursion wave ${nextWave}` : "Single breach"}
+            {m === "wave" ? `Wave ${nextWave}` : "Single challenge"}
           </button>
         ))}
       </div>
@@ -105,7 +105,7 @@ export function PostBreaches() {
       <div className="plate p-5">
         {mode === "wave" ? (
           <>
-            <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Wave breaches">
+            <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Wave challenges">
               {wave.map((w, i) => (
                 <button key={i} role="tab" aria-selected={slot === i} onClick={() => setSlot(i)} className={`rounded-md border px-3 py-1.5 text-sm ${slot === i ? "border-gold bg-gold/15 text-gold" : "border-white/10 text-steel"}`}>
                   {i + 1}. {w.title || "Untitled"}
@@ -116,14 +116,14 @@ export function PostBreaches() {
           </>
         ) : (
           <>
-            {queue.length > 0 && <p className="mb-3 text-sm text-gold">Reviewing imported breaches: {queue.length} more after this one.</p>}
+            {queue.length > 0 && <p className="mb-3 text-sm text-gold">Reviewing imported challenges: {queue.length} more after this one.</p>}
             <BreachForm idPrefix="single" value={single} onChange={setSingle} />
           </>
         )}
         <div className="mt-6 flex flex-wrap items-end justify-between gap-4 border-t border-white/10 pt-5">
           <ReleasePicker value={release} onChange={setRelease} />
           <button className="btn-primary" disabled={busy} onClick={mode === "wave" ? postWave : postSingle}>
-            {busy ? "Posting…" : mode === "wave" ? `Post wave ${nextWave}` : "Post breach"}
+            {busy ? "Posting…" : mode === "wave" ? `Post wave ${nextWave}` : "Post challenge"}
           </button>
         </div>
       </div>

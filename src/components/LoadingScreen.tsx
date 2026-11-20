@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePrefersReducedMotion } from "../hooks/store";
 import { PortalRing } from "./Art";
 
-const LINES = ["Hashing the flags…", "Recruiting squads…", "Stabilising the timeline…", "Locking The Sovereign out…"];
+const LINES = ["Hashing the flags…", "Recruiting teams…", "Stabilising the timeline…", "Locking The Sovereign out…"];
 const NAME = "DOOMSDAY CYPHER";
 const GLYPHS = "!<>-_\\/[]{}—=+*^?#ΔΣΞΨΩ01";
 

@@ -47,21 +47,21 @@ export function WarTablePage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.3em] text-reactor">Scoreboard</div>
-          <h1 className="h-display text-5xl sm:text-6xl">The War Table</h1>
+          <h1 className="h-display text-5xl sm:text-6xl">Scoreboard</h1>
         </div>
         <DoomsdayClock size="md" />
       </div>
 
       {s.freezeAt !== null && s.freezeAt <= now && (
         <div className="mb-4 rounded-md border border-gold/40 bg-gold/10 px-4 py-3 text-gold" role="status">
-          Frozen at {clockTime(s.freezeAt)}. Other squads' moves after that stay secret until the reveal.
+          Frozen at {clockTime(s.freezeAt)}. Other teams' moves after that stay secret until the reveal.
         </div>
       )}
 
       {hiddenForMe ? (
         <div className="plate p-10 text-center">
-          <p className="font-display text-4xl text-white">The War Table is sealed</p>
-          <p className="mt-2 text-steel/80">Command has hidden the scoreboard. Your own squad's Power is still on your Breaches page.</p>
+          <p className="font-display text-4xl text-white">Scoreboard is solved</p>
+          <p className="mt-2 text-steel/80">The organisers have hidden the scoreboard. Your own team's points are still on your Challenges page.</p>
         </div>
       ) : (
         <>
@@ -89,7 +89,7 @@ export function WarTablePage() {
             <section className="plate p-4 sm:p-5" aria-label="Rankings">
               <SectionTitle>Rankings</SectionTitle>
               {standings.length === 0 ? (
-                <p className="text-steel/70">No squads yet.</p>
+                <p className="text-steel/70">No teams yet.</p>
               ) : (
                 <ol className="grid gap-2">
                   {standings.map((r) => (
@@ -98,8 +98,8 @@ export function WarTablePage() {
                 </ol>
               )}
             </section>
-            <section className="plate p-4 sm:p-5" aria-label="Power over time">
-              <SectionTitle>Power over time</SectionTitle>
+            <section className="plate p-4 sm:p-5" aria-label="Points over time">
+              <SectionTitle>Points over time</SectionTitle>
               <StepChart
                 start={start}
                 end={end}
@@ -131,7 +131,7 @@ function RankRow({ r, prev, mine }: { r: Standing; prev?: number; mine: boolean 
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold text-white">{r.name}</span>
           <span className="text-xs text-steel/60">
-            {r.solves} sealed
+            {r.solves} solved
             {r.hintSpend > 0 && <span className="ml-2 text-breach">−{r.hintSpend} on hints</span>}
           </span>
         </span>
@@ -157,7 +157,7 @@ function RankRow({ r, prev, mine }: { r: Standing; prev?: number; mine: boolean 
   );
 }
 
-/** Each squad's emblem flies along its own lane towards a portal; distance = share of the leader's Power. */
+/** Each team's emblem flies along its own lane towards a portal; distance = share of the leader's points. */
 function PortalRace({ standings }: { standings: Standing[] }) {
   const { view } = useBackend();
   const reduced = usePrefersReducedMotion();
@@ -165,7 +165,7 @@ function PortalRace({ standings }: { standings: Standing[] }) {
   const top = Math.max(1, standings[0]?.power ?? 1);
   const lanes = useMemo(() => [...standings].sort((a, b) => a.name.localeCompare(b.name)), [standings]);
   const trackRef = useRef<HTMLDivElement>(null);
-  if (!standings.length) return <p className="text-steel/70">No squads yet.</p>;
+  if (!standings.length) return <p className="text-steel/70">No teams yet.</p>;
   return (
     <div className="relative" ref={trackRef}>
       <div className="absolute -right-6 top-1/2 hidden -translate-y-1/2 sm:block" aria-hidden>
@@ -187,7 +187,7 @@ function PortalRace({ standings }: { standings: Standing[] }) {
                 animate={{ left: `calc(${pct} * (100% - 120px))` }}
                 transition={{ type: "spring", stiffness: 60, damping: 16 }}
                 onClick={() => setPulse((p) => ({ ...p, [r.teamId]: (p[r.teamId] ?? 0) + 1 }))}
-                aria-label={`${r.name}: ${r.power} Power, rank ${r.rank}`}
+                aria-label={`${r.name}: ${r.power} points, rank ${r.rank}`}
               >
                 <span className="relative block">
                   {pulse[r.teamId] ? <span key={pulse[r.teamId]} className="anim-pulse-ring absolute inset-0 rounded-full" style={{ boxShadow: `0 0 0 4px ${color}` }} /> : null}

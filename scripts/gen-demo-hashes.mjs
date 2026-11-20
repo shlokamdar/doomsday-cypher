@@ -53,7 +53,7 @@ const PLAYER_PW = process.env.DEMO_PLAYER_PASSWORD || "squad-demo-2026";
 const flags = {};
 const flagHashes = {};
 for (const [id, cs] of CHALLENGES) {
-  const flag = `DC{${word()}_${word()}_${hex(3)}}`;
+  const flag = `IAMDOOM{${word()}_${word()}_${hex(3)}}`;
   flags[id] = flag;
   const s = salt();
   const norm = cs ? flag : flag.toLowerCase();

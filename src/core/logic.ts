@@ -58,15 +58,15 @@ export interface Standing {
   solvePoints: number;
   hintSpend: number;
   solves: number;
-  /** Time the squad reached its current Power (Infinity if it never scored). */
+  /** Time the team reached its current points (Infinity if it never scored). */
   reachedAt: number;
   members: MemberStanding[];
   series: { at: number; power: number }[];
 }
 
 /**
- * Ranks squads by Power, then by who reached that Power first.
- * Power = solve points − hint costs. Member Power always sums to the squad's Power.
+ * Ranks teams by points, then by who reached that score first.
+ * Points = solve points − hint costs. Member points always sum to the team's points.
  */
 export function computeStandings(teams: ViewTeam[], solves: Solve[], hintUnlocks: HintUnlock[]): Standing[] {
   const rows: Standing[] = teams.map((t) => {

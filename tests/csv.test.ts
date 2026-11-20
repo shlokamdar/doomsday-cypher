@@ -13,13 +13,13 @@ describe("CSV", () => {
   it("imports breaches and reports errors per row", () => {
     const csv = [
       "title,type,theme,points,flag,description,hint,hint_cost,attempts,files",
-      'Good one,Recruit,Signal,100,DC{x},"Desc, with comma",Look up,,3,a.txt|https://e.org/a.txt;b|/b.bin',
-      "No points,Recruit,Signal,,DC{y},,,,,",
-      "Bad type,Wizard,Signal,50,DC{z},,,,,",
-      "Bad theme,Agent,Ocean,50,DC{z},,,,,",
+      'Good one,Recruit,Signal,100,IAMDOOM{x},"Desc, with comma",Look up,,3,a.txt|https://e.org/a.txt;b|/b.bin',
+      "No points,Recruit,Signal,,IAMDOOM{y},,,,,",
+      "Bad type,Wizard,Signal,50,IAMDOOM{z},,,,,",
+      "Bad theme,Agent,Ocean,50,IAMDOOM{z},,,,,",
       "No flag,Agent,Void,50,,,,,,",
-      "Bad files,Agent,Void,50,DC{q},,,,,justaname",
-      "Bad attempts,Agent,Void,50,DC{q},,,,-1,",
+      "Bad files,Agent,Void,50,IAMDOOM{q},,,,,justaname",
+      "Bad attempts,Agent,Void,50,IAMDOOM{q},,,,-1,",
     ].join("\n");
     const { rows, errors } = parseBreachImport(csv, DEFAULT_CHALLENGE_TYPES);
     expect(rows).toHaveLength(1);
@@ -53,7 +53,7 @@ describe("CSV", () => {
 
   it("imports JSON too", () => {
     const { rows, errors } = parseBreachImport(
-      JSON.stringify([{ title: "J", type: "Elite", theme: "void", points: 300, flag: "DC{j}", hints: [{ text: "h", cost: 5 }] }]),
+      JSON.stringify([{ title: "J", type: "Elite", theme: "void", points: 300, flag: "IAMDOOM{j}", hints: [{ text: "h", cost: 5 }] }]),
       DEFAULT_CHALLENGE_TYPES,
     );
     expect(errors).toEqual([]);

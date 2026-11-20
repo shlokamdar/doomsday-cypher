@@ -8,7 +8,7 @@ export interface Series {
   points: { at: number; power: number }[];
 }
 
-/** Step chart of Power over time. 2px lines, recessive grid, crosshair + tooltip on hover, legend below. */
+/** Step chart of points over time. 2px lines, recessive grid, crosshair + tooltip on hover, legend below. */
 export function StepChart({ series, start, end, height = 260 }: { series: Series[]; start: number; end: number; height?: number }) {
   const W = 760;
   const H = height;
@@ -61,7 +61,7 @@ export function StepChart({ series, start, end, height = 260 }: { series: Series
         viewBox={`0 0 ${W} ${H}`}
         className="w-full touch-none"
         role="img"
-        aria-label="Power over time for the top squads"
+        aria-label="Points over time for the top teams"
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
       >

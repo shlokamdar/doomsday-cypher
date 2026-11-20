@@ -129,10 +129,10 @@ var THEMES = [
 ];
 var THEME_IDS = THEMES.map((t) => t.id);
 var DEFAULT_CHALLENGE_TYPES = [
-  { id: "t-recruit", name: "Recruit", description: "Warm-up breaches with one clear step.", color: "#2BD67B" },
+  { id: "t-recruit", name: "Recruit", description: "Warm-up challenges with one clear step.", color: "#2BD67B" },
   { id: "t-agent", name: "Agent", description: "Two or three steps and some digging.", color: "#F2B33D" },
   { id: "t-elite", name: "Elite", description: "Multi-stage. Expect to write a script.", color: "#E0408A" },
-  { id: "t-legend", name: "Legend", description: "For the squad that wants the crown.", color: "#9B7BFF" }
+  { id: "t-legend", name: "Legend", description: "For the team that wants the crown.", color: "#9B7BFF" }
 ];
 
 // src/core/logic.ts
@@ -207,12 +207,12 @@ var BREACH_HEADER = ["title", "type", "theme", "points", "flag", "description", 
 var BREACH_TEMPLATE = toCsv([
   BREACH_HEADER,
   [
-    "Example breach",
+    "Example challenge",
     "Recruit",
     "Signal",
     100,
-    "REPLACE_WITH_YOUR_FLAG",
-    "Describe the breach here.",
+    "IAMDOOM{replace_me}",
+    "Describe the challenge here.",
     "Optional hint text",
     10,
     0,
@@ -233,7 +233,7 @@ function parseSquadCsv(text, teamSize) {
     const rowNo = i + 1 + start;
     const team = (cells[0] ?? "").trim();
     const members = cells.slice(1).map((c) => c.trim()).filter(Boolean);
-    if (!team) errors.push({ row: rowNo, message: "Squad name is required." });
+    if (!team) errors.push({ row: rowNo, message: "Team name is required." });
     else if (!members.length) errors.push({ row: rowNo, message: "At least one member is required." });
     else if (members.length > teamSize) errors.push({ row: rowNo, message: `Too many members (max ${teamSize}).` });
     else rows.push({ team, members });
@@ -257,90 +257,90 @@ function isUserError(e) {
 // src/core/demoHashes.ts
 var DEMO_FLAG_HASHES = {
   "c-skyline": {
-    "salt": "i6vWgZgLLjd3kFlKvj8LyQ==",
-    "hash": "N1FOU0BapSzYwEyxbntWJsrfYWqFaYsH6DELiiei2P4="
+    "salt": "JIwXsutZNf2k/5KsS22KQQ==",
+    "hash": "ajJmICodqmEfievvElZ82aHM1M2QNCD6iFQyR/WCdxQ="
   },
   "c-channel9": {
-    "salt": "orP+F6hqi414aecdqjx0EA==",
-    "hash": "StqsQu8ka/UsYC9ymswD6IeqOU5iwvd9ob1Sv+tsLZE="
+    "salt": "+eM66RnnL6c5fPUsa2jJaw==",
+    "hash": "hBxnJ/dTqON3pJHgp0yKxHcFhKGGe1ovs5LcdKhf9ek="
   },
   "c-sentry": {
-    "salt": "5ILXEtuQM6N30gqc1/QJZQ==",
-    "hash": "Gxy1s10eS6LU/FEl+BZPqR7y22hU3Epzi7Uu4kexq3k="
+    "salt": "AWxEwQRLQwHCJND1XNZ6WA==",
+    "hash": "D2EfqGG9UShCWBYNCH580nT20Iq9nTN+F/fCeNEC+MI="
   },
   "c-ledger": {
-    "salt": "0fWLOitVikfz+ijS3MypcA==",
-    "hash": "FFZEsJK5+bIXweUwQh7mXDd7jPoTD/ziaV9AgRptsmE="
+    "salt": "ROUj616pqLca5rkb1N0X6g==",
+    "hash": "rXY4WdHkKxhA3nlSlNK1UV2u9UB/6W32T4cICfVzYTA="
   },
   "c-echoes": {
-    "salt": "pDr6J4W3bgziMWrsWiZWwg==",
-    "hash": "p6dwzPca1L0AZgrtrSulPf1LGFjqgCsa1P1lLsXPVfM="
+    "salt": "vp7/o0kZkRnjBqgk2YYhgw==",
+    "hash": "Y04H2RmaG+O6GCMAfnvl/3wRtqMypOcCOZvSxxq0ePQ="
   },
   "c-paradox": {
-    "salt": "skuFpfhwFBk2G7oKiG2nlw==",
-    "hash": "0kannGFMUyZpxWHooLD6RtDeJHCd49wPihwERQpK6+o="
+    "salt": "h19m0eKJoVKxNFF1YkiWOg==",
+    "hash": "lsrJWT+geyVVGcz57hEWS2QhTVE0mIkroJjpn48A8As="
   },
   "c-cipher": {
-    "salt": "0ulQPhbw32jlxxA3NnmkOQ==",
-    "hash": "bmS4BO2ks4BwfZeK5MxNhUMgASjyMmoB0hoPzTKubYM="
+    "salt": "Sk/N5TJesxHJG3ixf+Xfyg==",
+    "hash": "retYQ3jC6hLpaW41hJg2Qf7Vsg4dYCPmYOhNuVwRibM="
   },
   "c-lastlight": {
-    "salt": "zltW+8jruMz0EYokB3JFlg==",
-    "hash": "tPZBqTmzIagdhwxxptg6eFqHMVDr6sBX2Fu/nVoI6To="
+    "salt": "f4vILcljkjMBlZb6Q8RAwQ==",
+    "hash": "AmD4frnIdkz48W2C4p68e2Zy3jrMutJyOk5FO6PmbFM="
   }
 };
 var DEMO_PASSWORD_HASHES = {
   "admin": {
-    "salt": "crfhkRx4sAsA/Fz0H/J9CQ==",
-    "hash": "qOTu7viqzFzhWjKNyNgIdU+O3ImuMOKrGMzwyEzS1po="
+    "salt": "POUNElAjwMzMRtWLW6fJxg==",
+    "hash": "xdAOiFsTI7mMGt/p8XqX9NQzS7LzypviI2Wu5WBjKYA="
   },
   "kira.valdez": {
-    "salt": "foYP6CM88nJjoDPTTf/unQ==",
-    "hash": "d6D03+ym6GJJ0nvmSAtoewE1l2etoZYGxfYtMgopeOY="
+    "salt": "OuhQjpDI6F0XIWWFMAOnJw==",
+    "hash": "IXMIdZT5mohj74FxY6Rgs6mSlWTgno9eTgBPB7Gchlc="
   },
   "oren.patel": {
-    "salt": "53aymcctJN+1JcQOj/wR9Q==",
-    "hash": "BUTu55YyQZ9lSCBYYbPIPX6ERJ/wgdP5AyKdtIbfxXg="
+    "salt": "9BInacrVV7ZJmuSxMo6NFg==",
+    "hash": "UFR5P1MC4PWlA40uHds6Hv5jcr8Ik0/IKX7Y10DRxSM="
   },
   "mina.strand": {
-    "salt": "uoEdgC/ZJd3j5U+uSiXVxg==",
-    "hash": "JO4hSEAXNpU6YXabIDwNGAl0JFxJOyrPwqm3U/fEDk0="
+    "salt": "nMvbKmgvTx7nOgEueYWGXA==",
+    "hash": "6dsQ2CyZy+SnAbU5XS9Gjstpn4BI+4QlK2gu/wF7CWY="
   },
   "leo.achterberg": {
-    "salt": "yaYX7g9UhqN3YDhcqE/EPw==",
-    "hash": "y1Lruwqtzmk54qizLIVqMD6XwMLhxk72GxUx7fBEoAY="
+    "salt": "XrB9bsb8oMQvej/Y5Kc2gA==",
+    "hash": "Rz3KLl/eLSgow3opKKuPk5GaoYhVMXdeEjO+tUTC0TQ="
   },
   "sana.iqbal": {
-    "salt": "dr8n4sq+65yYuAIqwKWTiA==",
-    "hash": "g+U7NmoJ4hPGz3mgNFVWSSTdE1Y1oDYQ76yl4xP/uQA="
+    "salt": "7Ls/XqsQG0XtycpQEsF0Yw==",
+    "hash": "gsxMCqD9UWnC1xXe4emuojzEK4MgBksq9e6yC3GrbvM="
   },
   "dev.morrow": {
-    "salt": "YTvLUQRO2D2e9DqBz+DUEw==",
-    "hash": "FgIYOp1wiDk5grQfhPL8YySHTJOC1yof2Kd+c+YR/Pw="
+    "salt": "waDHRS5PyhpKscta3Fj9zw==",
+    "hash": "ic6FL/OQ9H3ZVagPERpjdPgyE8VhKYuQM+qzbkgQ9k8="
   },
   "ayla.brooks": {
-    "salt": "DP09MUrVL4LQtYDpSsWEmg==",
-    "hash": "e1sBHcGS+PUl5cm3l8t+DTfcy8RN9abrvfAExy7OM/I="
+    "salt": "yEemBFXXAUFRvw72eJBgIA==",
+    "hash": "uNHQwJC2iYglo8PD4xpwkJ2GdwvRTSPYxq0t7lZDeOY="
   },
   "jun.takeda": {
-    "salt": "fFuvmfn4YX7Hij6KTBIzUg==",
-    "hash": "M+vjugJoDksn5kE1+dJSaqNHSZsFwCXDs8rl0oJ0RCs="
+    "salt": "NZHmFT38457nG3qyMQgfnA==",
+    "hash": "XMs1x6qF6Onwf9zTKAM01fDNNYAMRMLj0nZHp9aELF8="
   },
   "felix.odum": {
-    "salt": "UqiJZirO2Mqt7fFag69eVQ==",
-    "hash": "0/h0E455V+PHd7juCpUL1CvROnN9dJHndsZN/ocvk0Q="
+    "salt": "7sqG9fOxhnrzdYpZNDu5zg==",
+    "hash": "0DSr1e3KnbhY4APolKPbANrLvVnJLeehVmAx3Ebrbk4="
   },
   "noor.haddad": {
-    "salt": "WOGmCLvp1VqswFIQD5bZfQ==",
-    "hash": "HyrO6BRTfmeGfe9q+vvAEqaI5komk8J5hX8Kv5PAg5w="
+    "salt": "WD+akPh42dwKwhqYqmuV/Q==",
+    "hash": "m9m46JZMqz6dVqaQAB9wyr7BLO1cbxO66Coab1g06YM="
   },
   "cal.reyes": {
-    "salt": "pyGk/tLYWoq9JxZOqMQPkg==",
-    "hash": "zVB6JhDZTRJBJUAbZjTH9TkTv/W9hJDo4Tl/dtCdo84="
+    "salt": "vRzmh10rbhI1estfgzEqYw==",
+    "hash": "4psEk8KM8HHDbEzWK4G5DcJGAFpt6KK+cSzHb+RA/9w="
   },
   "isla.fenwick": {
-    "salt": "askd4jrNwivm7i0r5gKMgg==",
-    "hash": "blNWkKYKZuMxgwFf3iSfHtTHi5AgjnhQbA+viDq0rB8="
+    "salt": "2eu40gNQHV7K4I8FP72rug==",
+    "hash": "uDCzFew2HZN5K4f8j5bE2KgvvDwSjBQHKqj6GxRIiwM="
   }
 };
 
@@ -356,7 +356,8 @@ function defaultSettings() {
     teamSize: 3,
     scoreboardVisible: true,
     freezeAt: null,
-    submissionsPerMinute: 10
+    submissionsPerMinute: 10,
+    forcePasswordChange: false
   };
 }
 function emptyDb() {
@@ -379,7 +380,7 @@ async function freshDb(adminPassword, now = Date.now()) {
   db.users.push({
     id: "u-admin",
     username: "admin",
-    displayName: "Command",
+    displayName: "Admin",
     role: "admin",
     teamId: null,
     passwordSalt: salt,
@@ -405,7 +406,7 @@ function demoDb(now = Date.now(), adminOverride) {
   db.users.push({
     id: "u-admin",
     username: "admin",
-    displayName: "Command",
+    displayName: "Admin",
     role: "admin",
     teamId: null,
     passwordSalt: admin.salt,
@@ -540,7 +541,7 @@ function demoDb(now = Date.now(), adminOverride) {
       typeId: "t-legend",
       theme: "machine",
       title: "Last Light Protocol",
-      description: "Draft: the final breach. Command has not released it yet.",
+      description: "Draft: the final challenge. Admin has not released it yet.",
       points: 400,
       files: [],
       hints: [],
@@ -563,13 +564,13 @@ function demoDb(now = Date.now(), adminOverride) {
     ["u-cal", "c-paradox", 75]
   ];
   const wrong = [
-    ["u-leo", "c-channel9", 18, "DC{channel_nine}"],
+    ["u-leo", "c-channel9", 18, "IAMDOOM{channel_nine}"],
     ["u-sana", "c-channel9", 25, "static"],
-    ["u-felix", "c-skyline", 20, "DC{london}"],
-    ["u-isla", "c-echoes", 50, "DC{deleted}"],
-    ["u-noor", "c-echoes", 58, "DC{void_echo}"],
-    ["u-oren", "c-ledger", 44, "DC{row_42}"],
-    ["u-jun", "c-echoes", 70, "DC{magic}"],
+    ["u-felix", "c-skyline", 20, "IAMDOOM{london}"],
+    ["u-isla", "c-echoes", 50, "IAMDOOM{deleted}"],
+    ["u-noor", "c-echoes", 58, "IAMDOOM{void_echo}"],
+    ["u-oren", "c-ledger", 44, "IAMDOOM{row_42}"],
+    ["u-jun", "c-echoes", 70, "IAMDOOM{magic}"],
     ["u-cal", "c-paradox", 62, "ABCD"]
   ];
   const teamOf = (userId) => db.users.find((u) => u.id === userId).teamId;
@@ -589,10 +590,10 @@ function demoDb(now = Date.now(), adminOverride) {
   ];
   db.hintUnlocks = unlocks;
   const notes = [
-    { id: "n-1", title: "The Doomsday Clock is ticking", body: "Three hours. Seal every breach you can. Good luck, squads.", level: "important", at: at(0) },
-    { id: "n-2", title: "Incursion wave 1 is live", body: "Five breaches have opened across the multiverse.", level: "info", at: at(0) },
-    { id: "n-3", title: "New breach: Paradox Gate", body: "A Chronos breach has opened. Worth 200 Power.", level: "info", at: at(40) },
-    { id: "n-4", title: "Reminder: hints cost Power", body: "Opening a hint spends Power for your whole squad. Choose wisely.", level: "info", at: at(65) }
+    { id: "n-1", title: "The Timer is ticking", body: "Three hours. Solve every challenge you can. Good luck, teams.", level: "important", at: at(0) },
+    { id: "n-2", title: "Wave 1 is live", body: "Five challenges have opened across the multiverse.", level: "info", at: at(0) },
+    { id: "n-3", title: "New challenge: Paradox Gate", body: "A Chronos challenge has opened. Worth 200 points.", level: "info", at: at(40) },
+    { id: "n-4", title: "Reminder: hints cost points", body: "Opening a hint spends points for your whole team. Choose wisely.", level: "info", at: at(65) }
   ];
   db.notifications = notes;
   return db;
@@ -653,11 +654,11 @@ function validateBackup(json2) {
     throw new UserError("Backup is not valid JSON.");
   }
   if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.users) || !Array.isArray(parsed.challenges)) {
-    throw new UserError("Backup is missing users or breaches.");
+    throw new UserError("Backup is missing users or challenges.");
   }
   const db = migrate(parsed);
   const admin = db.users.find((u) => u.role === "admin" && u.passwordHash && u.passwordSalt);
-  if (!admin) throw new UserError("Backup must contain at least one Command (admin) account.");
+  if (!admin) throw new UserError("Backup must contain at least one admin account.");
   return db;
 }
 
@@ -685,12 +686,12 @@ function time(v, name) {
 }
 function findChallenge(db, id) {
   const c = db.challenges.find((x) => x.id === id);
-  if (!c) throw new UserError("Breach not found.", 404);
+  if (!c) throw new UserError("Challenge not found.", 404);
   return c;
 }
 function findTeam(db, id) {
   const t = db.teams.find((x) => x.id === id);
-  if (!t) throw new UserError("Squad not found.", 404);
+  if (!t) throw new UserError("Team not found.", 404);
   return t;
 }
 function notify(db, now, title, body, level = "info") {
@@ -725,12 +726,12 @@ async function newMember(db, team, displayName, now, taken) {
   return { userId: user.id, teamName: team.name, displayName, username: user.username, password };
 }
 async function createTeamIn(db, nameRaw, membersRaw, now) {
-  const name = str(nameRaw, "Squad name", 60);
-  if (db.teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) throw new UserError(`A squad called "${name}" already exists.`);
+  const name = str(nameRaw, "Team name", 60);
+  if (db.teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) throw new UserError(`A team called "${name}" already exists.`);
   if (!Array.isArray(membersRaw)) throw new UserError("Members must be a list.");
   const members = membersRaw.map((m, i) => str(m, `Member ${i + 1}`, 60, true)).filter(Boolean);
   if (!members.length) throw new UserError("Add at least one member.");
-  if (members.length > db.settings.teamSize) throw new UserError(`Squads have at most ${db.settings.teamSize} members.`);
+  if (members.length > db.settings.teamSize) throw new UserError(`Teams have at most ${db.settings.teamSize} members.`);
   const team = { id: newId("s-"), name, createdAt: now };
   db.teams.push(team);
   const taken = /* @__PURE__ */ new Set();
@@ -739,7 +740,7 @@ async function createTeamIn(db, nameRaw, membersRaw, now) {
   return { teamId: team.id, credentials };
 }
 async function buildChallenge(db, raw, now, existing) {
-  if (!raw || typeof raw !== "object") throw new UserError("Breach details are missing.");
+  if (!raw || typeof raw !== "object") throw new UserError("Challenge details are missing.");
   const title = str(raw.title, "Title", 120);
   const points = int(raw.points, "Points", 1, 1e5);
   const typeId = str(raw.typeId, "Category", 60);
@@ -748,7 +749,7 @@ async function buildChallenge(db, raw, now, existing) {
   if (!THEME_IDS.includes(theme)) throw new UserError("Unknown theme.");
   const description = str(raw.description ?? "", "Description", 5e3, true);
   const caseSensitive = raw.caseSensitive === void 0 ? false : bool(raw.caseSensitive, "Case-sensitive");
-  const maxAttempts = int(raw.maxAttempts ?? 0, "Attempts per squad", 0, 1e3);
+  const maxAttempts = int(raw.maxAttempts ?? 0, "Attempts per team", 0, 1e3);
   if (!Array.isArray(raw.hints ?? [])) throw new UserError("Hints must be a list.");
   const hints = (raw.hints ?? []).map((h, i) => ({
     text: str(h?.text, `Hint ${i + 1}`, 1e3),
@@ -820,7 +821,7 @@ var METHODS = {
       const username = typeof usernameRaw === "string" ? usernameRaw.trim().toLowerCase() : "";
       const password = typeof passwordRaw === "string" ? passwordRaw : "";
       const user = db.users.find((u) => u.username === username);
-      const fail = () => new UserError("Wrong squad, name or password.", 401);
+      const fail = () => new UserError("Wrong team, name or password.", 401);
       if (!user) {
         await hashPassword(password, newSalt());
         throw fail();
@@ -829,7 +830,7 @@ var METHODS = {
       const okPw = safeEqual(hash, user.passwordHash);
       const okRole = teamId === null || teamId === void 0 ? user.role === "admin" : user.role === "player" && user.teamId === teamId;
       if (!okPw || !okRole) throw fail();
-      return { __session: user.id, mustChangePassword: user.mustChangePassword };
+      return { __session: user.id, mustChangePassword: user.mustChangePassword && db.settings.forcePasswordChange };
     }
   },
   changePassword: {
@@ -855,9 +856,9 @@ var METHODS = {
       const user = actor;
       const teamId = user.teamId;
       const c = db.challenges.find((x) => x.id === challengeId);
-      if (!c || !liveFor(c, now)) throw new UserError("Breach not found.", 404);
+      if (!c || !liveFor(c, now)) throw new UserError("Challenge not found.", 404);
       const phase = clockPhase(db.settings, now);
-      if (phase === "idle") throw new UserError("Flags open when the Doomsday Clock starts.");
+      if (phase === "idle") throw new UserError("Flags open when the timer starts.");
       if (phase === "ended") throw new UserError("Time's up.");
       const value = typeof valueRaw === "string" ? valueRaw.trim() : "";
       if (!value) throw new UserError("Enter a flag.");
@@ -866,10 +867,10 @@ var METHODS = {
       if (teamSolved(db, teamId, c.id)) {
         return { correct: true, alreadySolved: true, points: 0, title: c.title, attemptsLeft: info().left };
       }
-      if (info().left === 0) throw new UserError("Out of attempts. Command can grant more.");
+      if (info().left === 0) throw new UserError("Out of attempts. An admin can grant more.");
       const recent = db.submissions.filter((s) => s.teamId === teamId && s.challengeId === c.id && s.at > now - MINUTE).length;
       if (recent >= db.settings.submissionsPerMinute)
-        throw new UserError(`Slow down: your squad can try ${db.settings.submissionsPerMinute} flags per minute on this breach.`, 429);
+        throw new UserError(`Slow down: your team can try ${db.settings.submissionsPerMinute} flags per minute on this challenge.`, 429);
       const hash = await hashFlag(value, c.caseSensitive, c.flagSalt);
       const correct = safeEqual(hash, c.flagHash);
       db.submissions.push({
@@ -889,7 +890,7 @@ var METHODS = {
     fn({ db, actor, now }, challengeId, indexRaw) {
       const user = actor;
       const c = db.challenges.find((x) => x.id === challengeId);
-      if (!c || !liveFor(c, now)) throw new UserError("Breach not found.", 404);
+      if (!c || !liveFor(c, now)) throw new UserError("Challenge not found.", 404);
       if (clockPhase(db.settings, now) === "ended") throw new UserError("Time's up.");
       const index = int(indexRaw, "Hint", 0, c.hints.length - 1);
       const existing = db.hintUnlocks.find((h) => h.teamId === user.teamId && h.challengeId === c.id && h.index === index);
@@ -898,13 +899,13 @@ var METHODS = {
       return { already: false };
     }
   },
-  /* ---- Command: clock ---- */
+  /* ---- Admin: clock ---- */
   clockStart: {
     auth: "admin",
     fn({ db, now }) {
       db.settings.startsAt = now;
       db.settings.endsAt = now + db.settings.durationMinutes * MINUTE;
-      notify(db, now, "The Doomsday Clock is ticking", `${db.settings.durationMinutes / 60} hours on the clock. Seal every breach you can.`, "important");
+      notify(db, now, "The Timer is ticking", `${db.settings.durationMinutes / 60} hours on the clock. Solve every challenge you can.`, "important");
     }
   },
   clockAddMinutes: {
@@ -913,7 +914,7 @@ var METHODS = {
       const m = int(minutes, "Minutes", 1, 600);
       if (db.settings.startsAt === null || db.settings.endsAt === null) throw new UserError("Start the clock first.");
       db.settings.endsAt = Math.max(db.settings.endsAt, now) + m * MINUTE;
-      notify(db, now, `+${m} minutes on the Doomsday Clock`, "Command has bought the multiverse a little more time.");
+      notify(db, now, `+${m} minutes on the timer`, "The organisers added more time to the clock.");
     }
   },
   clockEnd: {
@@ -922,7 +923,7 @@ var METHODS = {
       if (db.settings.startsAt === null) throw new UserError("The clock has not started.");
       db.settings.endsAt = Math.min(db.settings.endsAt ?? now, now);
       if (db.settings.startsAt > now) db.settings.startsAt = now;
-      notify(db, now, "Time's up", "The Doomsday Clock has hit zero. Flags are closed.", "important");
+      notify(db, now, "Time's up", "The Timer has hit zero. Flags are closed.", "important");
     }
   },
   clockReset: {
@@ -932,7 +933,7 @@ var METHODS = {
       db.settings.endsAt = null;
     }
   },
-  /* ---- Command: breaches ---- */
+  /* ---- Admin: challenges ---- */
   saveChallenge: {
     auth: "admin",
     async fn({ db, now }, input) {
@@ -947,14 +948,14 @@ var METHODS = {
   postWave: {
     auth: "admin",
     async fn({ db, now }, inputs, release) {
-      if (!Array.isArray(inputs) || inputs.length !== 5) throw new UserError("An incursion wave has exactly 5 breaches.");
+      if (!Array.isArray(inputs) || inputs.length !== 5) throw new UserError("An wave has exactly 5 challenges.");
       const releaseAt = releaseTime(release, now);
       const built = [];
       for (let i = 0; i < 5; i++) {
         try {
           built.push(await buildChallenge(db, { ...inputs[i], id: void 0 }, now));
         } catch (e) {
-          throw new UserError(`Breach ${i + 1}: ${e.message}`);
+          throw new UserError(`Challenge ${i + 1}: ${e.message}`);
         }
       }
       const number = db.waves.reduce((m, w) => Math.max(m, w.number), 0) + 1;
@@ -965,7 +966,7 @@ var METHODS = {
         c.releaseAt = releaseAt;
         db.challenges.push(c);
       }
-      if (releaseAt === now) notify(db, now, `Incursion wave ${number} is live`, "Five new breaches have opened across the multiverse.", "important");
+      if (releaseAt === now) notify(db, now, `Wave ${number} is live`, "Five new challenges have opened across the multiverse.", "important");
       return { waveId: wave.id, number, ids: built.map((c) => c.id) };
     }
   },
@@ -976,7 +977,7 @@ var METHODS = {
       const c = await buildChallenge(db, { ...input, id: void 0 }, now);
       c.releaseAt = releaseAt;
       db.challenges.push(c);
-      if (releaseAt === now) notify(db, now, `New breach: ${c.title}`, `A ${c.points}-Power breach has opened.`);
+      if (releaseAt === now) notify(db, now, `New challenge: ${c.title}`, `A ${c.points}-Power challenge has opened.`);
       return { id: c.id };
     }
   },
@@ -986,7 +987,7 @@ var METHODS = {
       const c = findChallenge(db, id);
       c.releaseAt = now;
       c.hidden = false;
-      notify(db, now, `New breach: ${c.title}`, `A ${c.points}-Power breach has opened.`);
+      notify(db, now, `New challenge: ${c.title}`, `A ${c.points}-Power challenge has opened.`);
     }
   },
   schedule: {
@@ -1021,7 +1022,7 @@ var METHODS = {
         c.releaseAt = now;
         c.hidden = false;
       }
-      notify(db, now, `Incursion wave ${wave.number} is live`, `${cs.length} new breaches have opened across the multiverse.`, "important");
+      notify(db, now, `Wave ${wave.number} is live`, `${cs.length} new challenges have opened across the multiverse.`, "important");
     }
   },
   deleteChallenge: {
@@ -1038,11 +1039,11 @@ var METHODS = {
     auth: "admin",
     fn({ db }, id, n) {
       const c = findChallenge(db, id);
-      if (!c.maxAttempts) throw new UserError("This breach already has unlimited attempts.");
+      if (!c.maxAttempts) throw new UserError("This challenge already has unlimited attempts.");
       c.bonusAttempts += int(n ?? 3, "Attempts", 1, 100);
     }
   },
-  /* ---- Command: squads ---- */
+  /* ---- Admin: teams ---- */
   createTeam: {
     auth: "admin",
     fn({ db, now }, name, members) {
@@ -1070,8 +1071,8 @@ var METHODS = {
     auth: "admin",
     fn({ db }, teamId, name) {
       const t = findTeam(db, teamId);
-      const n = str(name, "Squad name", 60);
-      if (db.teams.some((x) => x.id !== t.id && x.name.toLowerCase() === n.toLowerCase())) throw new UserError(`A squad called "${n}" already exists.`);
+      const n = str(name, "Team name", 60);
+      if (db.teams.some((x) => x.id !== t.id && x.name.toLowerCase() === n.toLowerCase())) throw new UserError(`A team called "${n}" already exists.`);
       t.name = n;
     }
   },
@@ -1080,7 +1081,7 @@ var METHODS = {
     fn({ db, now }, teamId, displayName) {
       const t = findTeam(db, teamId);
       const count = db.users.filter((u) => u.teamId === t.id).length;
-      if (count >= db.settings.teamSize) throw new UserError(`Squads have at most ${db.settings.teamSize} members.`);
+      if (count >= db.settings.teamSize) throw new UserError(`Teams have at most ${db.settings.teamSize} members.`);
       return newMember(db, t, str(displayName, "Name", 60), now, /* @__PURE__ */ new Set());
     }
   },
@@ -1094,7 +1095,7 @@ var METHODS = {
       u.passwordHash = await hashPassword(password, u.passwordSalt);
       u.mustChangePassword = true;
       const team = db.teams.find((t) => t.id === u.teamId);
-      return { userId: u.id, teamName: team?.name ?? "Command", displayName: u.displayName, username: u.username, password };
+      return { userId: u.id, teamName: team?.name ?? "Admin", displayName: u.displayName, username: u.username, password };
     }
   },
   removeMember: {
@@ -1115,7 +1116,7 @@ var METHODS = {
       db.hintUnlocks = db.hintUnlocks.filter((h) => h.teamId !== t.id);
     }
   },
-  /* ---- Command: transmissions ---- */
+  /* ---- Admin: announcements ---- */
   postNotification: {
     auth: "admin",
     fn({ db, now }, title, body, level) {
@@ -1129,7 +1130,7 @@ var METHODS = {
       db.notifications = db.notifications.filter((n) => n.id !== id);
     }
   },
-  /* ---- Command: settings ---- */
+  /* ---- Admin: settings ---- */
   updateSettings: {
     auth: "admin",
     fn({ db }, patch) {
@@ -1138,7 +1139,8 @@ var METHODS = {
       if (patch.eventName !== void 0) s.eventName = str(patch.eventName, "Event name", 80);
       if (patch.tagline !== void 0) s.tagline = str(patch.tagline, "Tagline", 160, true);
       if (patch.durationMinutes !== void 0) s.durationMinutes = int(patch.durationMinutes, "Duration", 1, 1440);
-      if (patch.teamSize !== void 0) s.teamSize = int(patch.teamSize, "Squad size", 1, 10);
+      if (patch.teamSize !== void 0) s.teamSize = int(patch.teamSize, "Team size", 1, 10);
+      if (patch.forcePasswordChange !== void 0) s.forcePasswordChange = bool(patch.forcePasswordChange, "Force password change");
       if (patch.submissionsPerMinute !== void 0) s.submissionsPerMinute = int(patch.submissionsPerMinute, "Submissions per minute", 1, 1e3);
     }
   },
@@ -1175,7 +1177,7 @@ var METHODS = {
       db.settings.freezeAt = null;
     }
   },
-  /* ---- Command: data ---- */
+  /* ---- Admin: data ---- */
   exportBackup: {
     auth: "admin",
     readonly: true,
@@ -1199,7 +1201,7 @@ var METHODS = {
       next.users.push({
         id: newId("u-"),
         username: "admin",
-        displayName: "Command",
+        displayName: "Admin",
         role: "admin",
         teamId: null,
         passwordSalt: salt,
@@ -1209,7 +1211,7 @@ var METHODS = {
       });
       replaceDb(db, next);
       const admin = db.users[0];
-      const credential = { userId: admin.id, teamName: "Command", displayName: "Command", username: "admin", password };
+      const credential = { userId: admin.id, teamName: "Admin", displayName: "Admin", username: "admin", password };
       return { credential, __session: admin.id };
     }
   },
@@ -1232,9 +1234,9 @@ async function dispatch(db, actorId, method, args, now) {
   const actor = actorId ? db.users.find((u) => u.id === actorId) ?? null : null;
   if (spec.auth !== "none") {
     if (!actor) throw new UserError("Please log in again.", 401);
-    if (spec.auth === "admin" && actor.role !== "admin") throw new UserError("Command only.", 403);
-    if (spec.auth === "player" && (actor.role !== "player" || !actor.teamId)) throw new UserError("Only squad members can do that.", 403);
-    if (actor.mustChangePassword && method !== "changePassword") throw new UserError("Change your password first.", 403);
+    if (spec.auth === "admin" && actor.role !== "admin") throw new UserError("Admin only.", 403);
+    if (spec.auth === "player" && (actor.role !== "player" || !actor.teamId)) throw new UserError("Only team members can do that.", 403);
+    if (actor.mustChangePassword && db.settings.forcePasswordChange && method !== "changePassword") throw new UserError("Change your password first.", 403);
   }
   const raw = await spec.fn({ db, actor, now }, ...args);
   let result = raw;
@@ -1317,7 +1319,7 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
     serverNow: now,
     version,
     settings: { ...s },
-    me: me ? publicUser(me, true) : null,
+    me: me ? { ...publicUser(me, true), mustChangePassword: me.mustChangePassword && s.forcePasswordChange } : null,
     teams: db.teams.map((t) => ({
       id: t.id,
       name: t.name,

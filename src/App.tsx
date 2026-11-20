@@ -87,14 +87,14 @@ function Shell() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/password" element={<RequireUser><ChangePasswordPage /></RequireUser>} />
-                <Route path="/breaches" element={<RequirePlayer><BreachesPage /></RequirePlayer>} />
-                <Route path="/war-table" element={<WarTablePage />} />
-                <Route path="/transmissions" element={<TransmissionsPage />} />
+                <Route path="/challenges" element={<RequirePlayer><BreachesPage /></RequirePlayer>} />
+                <Route path="/scoreboard" element={<WarTablePage />} />
+                <Route path="/announcements" element={<TransmissionsPage />} />
                 <Route
-                  path="/command/*"
+                  path="/admin/*"
                   element={
                     <RequireAdmin>
-                      <Suspense fallback={<div className="p-10 text-center text-steel">Opening Command…</div>}>
+                      <Suspense fallback={<div className="p-10 text-center text-steel">Opening Admin…</div>}>
                         <CommandApp />
                       </Suspense>
                     </RequireAdmin>
@@ -120,12 +120,12 @@ function RequireUser({ children }: { children: ReactNode }) {
 function RequirePlayer({ children }: { children: ReactNode }) {
   const { view } = useBackend();
   if (!view.me) return <Navigate to="/login" replace />;
-  if (view.me.role === "admin") return <Navigate to="/command" replace />;
+  if (view.me.role === "admin") return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
 function RequireAdmin({ children }: { children: ReactNode }) {
   const { view } = useBackend();
-  if (!view.me) return <Navigate to="/login?tab=command" replace />;
-  if (view.me.role !== "admin") return <Navigate to="/breaches" replace />;
+  if (!view.me) return <Navigate to="/login?tab=admin" replace />;
+  if (view.me.role !== "admin") return <Navigate to="/challenges" replace />;
   return <>{children}</>;
 }

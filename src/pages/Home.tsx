@@ -10,10 +10,10 @@ import { THEMES } from "../core/themes";
 import { useBackend, useStandings } from "../hooks/store";
 
 const STEPS = [
-  { n: "01", t: "Assemble", d: "Your Strike Squad of three logs in. Every member has their own account and plays for the squad." },
-  { n: "02", t: "Breach", d: "Incursion waves of five breaches open across the multiverse. Singles drop between waves." },
-  { n: "03", t: "Seal", d: "Submit the flag to seal a breach and earn Power. Hints cost Power for the whole squad." },
-  { n: "04", t: "Win", d: "When the Doomsday Clock hits zero, the squad with the most Power saves every world." },
+  { n: "01", t: "Assemble", d: "Your team of three logs in. Every member has their own account and plays for the team." },
+  { n: "02", t: "Challenge", d: "Waves of five challenges open across the multiverse. Singles drop between waves." },
+  { n: "03", t: "Solve", d: "Submit the flag to solve a challenge and earn points. Hints cost points for the whole team." },
+  { n: "04", t: "Win", d: "When the timer hits zero, the team with the most points saves every world." },
 ];
 
 export function HomePage() {
@@ -35,24 +35,24 @@ export function HomePage() {
               <span className="text-gold">Save every world.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-steel">
-              The Sovereign is collapsing parallel worlds into one. Your Strike Squad has three hours to seal the breaches and
-              gather enough Power to stop it.
+              The Sovereign is collapsing parallel worlds into one. Your Team has three hours to solve the challenges and
+              gather enough points to stop it.
             </p>
             <div className="mt-6 inline-block rounded-lg border border-gold/30 bg-void/70 px-6 py-3 backdrop-blur">
               <DoomsdayClock size="xl" />
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               {me ? (
-                <Link to={me.role === "admin" ? "/command" : "/breaches"} className="btn-primary text-base">
-                  {me.role === "admin" ? "Open Command" : "Enter the breaches"}
+                <Link to={me.role === "admin" ? "/admin" : "/challenges"} className="btn-primary text-base">
+                  {me.role === "admin" ? "Open Admin" : "Enter the challenges"}
                 </Link>
               ) : (
                 <Link to="/login" className="btn-primary text-base">
                   Log in
                 </Link>
               )}
-              <Link to="/war-table" className="btn-ghost text-base">
-                The War Table
+              <Link to="/scoreboard" className="btn-ghost text-base">
+                Scoreboard
               </Link>
             </div>
           </motion.div>
@@ -61,13 +61,13 @@ export function HomePage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
             className="plate self-end p-5 backdrop-blur"
-            aria-label="Top of the War Table"
+            aria-label="Top of the scoreboard"
           >
-            <h2 className="font-display text-2xl tracking-wide text-white">Top of the War Table</h2>
+            <h2 className="font-display text-2xl tracking-wide text-white">Top of the scoreboard</h2>
             {!scoreboardOpen ? (
-              <p className="mt-3 text-steel/80">Command has hidden the War Table. Keep sealing.</p>
+              <p className="mt-3 text-steel/80">The organisers have hidden the scoreboard. Keep solving.</p>
             ) : standings.length === 0 ? (
-              <p className="mt-3 text-steel/80">No squads yet.</p>
+              <p className="mt-3 text-steel/80">No teams yet.</p>
             ) : (
               <ol className="mt-3 space-y-2">
                 {standings.slice(0, 5).map((r) => (
@@ -97,7 +97,7 @@ export function HomePage() {
         </div>
 
         <div className="mt-14">
-          <SectionTitle kicker="Breach categories">Six fronts of the multiverse</SectionTitle>
+          <SectionTitle kicker="Challenge categories">Six fronts of the multiverse</SectionTitle>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {THEMES.map((t) => (
               <div key={t.id} className="plate overflow-hidden">
@@ -122,20 +122,23 @@ export function HomePage() {
           <div className="plate p-6">
             <SectionTitle kicker="Rules of engagement">The rules</SectionTitle>
             <ul className="list-disc space-y-2 pl-5 text-steel/90">
-              <li>Squads of up to {s.teamSize}. Every member logs in with their own account.</li>
-              <li>Flags open when the Doomsday Clock starts and close when it hits zero ({s.durationMinutes} minutes).</li>
-              <li>Ties on Power go to the squad that reached that Power first.</li>
-              <li>Hints cost Power once, for the whole squad. Some breaches have limited attempts.</li>
-              <li>Max {s.submissionsPerMinute} flag attempts per minute per breach for each squad.</li>
-              <li>No attacking the platform, other squads, or the organisers' infrastructure.</li>
-              <li>No AI assistants solving breaches for you. Your brain, your squad, your win.</li>
+              <li>
+                Flags look like <code className="font-mono text-reactor">IAMDOOM{"{...}"}</code>. Paste the whole thing, braces included.
+              </li>
+              <li>Teams of up to {s.teamSize}. Every member logs in with their own account.</li>
+              <li>Flags open when the timer starts and close when it hits zero ({s.durationMinutes} minutes).</li>
+              <li>Ties go to the team that reached that score first.</li>
+              <li>Hints cost points once, for the whole team. Some challenges have limited attempts.</li>
+              <li>Max {s.submissionsPerMinute} flag attempts per minute per challenge for each team.</li>
+              <li>No attacking the platform, other teams, or the organisers' infrastructure.</li>
+              <li>No AI assistants solving challenges for you. Your brain, your team, your win.</li>
             </ul>
           </div>
           <div className="plate relative overflow-hidden p-6">
             <SectionTitle kicker="Intel">The Sovereign</SectionTitle>
             <p className="text-steel/90">
-              No one has seen the face behind the riveted iron mask. Every world it collapses feeds its power. Every breach you
-              seal pushes it back. Wrong flags make it laugh. Right ones make it crack.
+              No one has seen the face behind the riveted iron mask. Every world it collapses feeds its power. Every challenge you
+              solve pushes it back. Wrong flags make it laugh. Right ones make it crack.
             </p>
             <p className="mt-4 font-display text-2xl tracking-wide text-gold">{s.tagline}</p>
           </div>

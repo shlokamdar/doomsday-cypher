@@ -1,0 +1,4 @@
+DOOMSDAY CYPHER: demo artefact
+
+This is a placeholder file for the demo event. In the live event, Command attaches the real
+challenge files to each breach (as https:// links or files placed in this folder).

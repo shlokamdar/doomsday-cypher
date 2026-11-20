@@ -7,6 +7,7 @@ An original masked tyrant, **The Sovereign**, is collapsing parallel worlds into
 seal breaches (challenges) to earn Power (points). Most Power when the Doomsday Clock hits zero wins.
 
 All characters, emblems and illustrations are original SVG/CSS. No franchise names or likenesses.
+Home page photos are free-licence Unsplash images, self-hosted in `public/images/` (see Photo credits).
 
 The UI uses plain CTF words: Challenges, Waves (exactly 5 challenges), Points, Teams, Scoreboard,
 Admin, Announcements and the Timer. Flags look like **`IAMDOOM{...}`**.
@@ -141,6 +142,19 @@ node scripts/e2e.mjs   # two-browser end-to-end check (needs Chrome + Edge, buil
 without it the site uses a synthesised fallback.
 
 Data model changes: bump `DATA_VERSION` in `src/core/seed.ts` and add a step to `src/core/migrate.ts`.
+
+## Photo credits
+
+From [Unsplash](https://unsplash.com) under the [Unsplash License](https://unsplash.com/license) (free to use, no attribution required; credited anyway):
+
+| File | Unsplash photo |
+|---|---|
+| `hero-city.webp` | https://unsplash.com/photos/a-sprawling-cityscape-illuminated-by-countless-lights-at-night-hA3lbjkeo54 |
+| `osint.webp` | images.unsplash.com/photo-1451187580459-43490279c0fa |
+| `crypto.webp` | images.unsplash.com/photo-1614064745490-83abb17303e1 |
+| `python.webp` | images.unsplash.com/photo-1515879218367-8466d910aaa4 |
+| `sql.webp` | images.unsplash.com/photo-1558494949-ef010cbdcc31 |
+| `teams.webp` | images.unsplash.com/photo-1504384764586-bb4cdc1707b0 |
 
 ---
 

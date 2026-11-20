@@ -35,7 +35,7 @@ export function HomePage() {
               <span className="text-gold">Save every world.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-steel">
-              The Sovereign is collapsing parallel worlds into one. Your Team has three hours to solve the challenges and
+              The Sovereign is collapsing parallel worlds into one. Your team has three hours to solve the challenges and
               gather enough points to stop it.
             </p>
             <div className="mt-6 inline-block rounded-lg border border-gold/30 bg-void/70 px-6 py-3 backdrop-blur">
@@ -97,8 +97,8 @@ export function HomePage() {
         </div>
 
         <div className="mt-14">
-          <SectionTitle kicker="Challenge categories">Six fronts of the multiverse</SectionTitle>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <SectionTitle kicker="Challenge categories">Four categories</SectionTitle>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {THEMES.map((t) => (
               <div key={t.id} className="plate overflow-hidden">
                 <div className="flex items-center gap-3 px-5 py-3" style={{ background: `linear-gradient(90deg, ${t.tint}33, transparent)` }}>
@@ -131,7 +131,6 @@ export function HomePage() {
               <li>Hints cost points once, for the whole team. Some challenges have limited attempts.</li>
               <li>Max {s.submissionsPerMinute} flag attempts per minute per challenge for each team.</li>
               <li>No attacking the platform, other teams, or the organisers' infrastructure.</li>
-              <li>No AI assistants solving challenges for you. Your brain, your team, your win.</li>
             </ul>
           </div>
           <div className="plate relative overflow-hidden p-6">

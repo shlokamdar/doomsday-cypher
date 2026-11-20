@@ -54,21 +54,6 @@ export function ThemeIcon({ theme, size = 22, ...props }: P & { theme: ThemeId }
           <path d="M5 9c0 1.4 3.1 2.5 7 2.5S19 10.4 19 9" opacity=".5" />
         </svg>
       );
-    case "void": // shattered ring
-      return (
-        <svg {...p}>
-          <path d="M12 3a9 9 0 0 1 8.5 6M21 13a9 9 0 0 1-6 7.6M10 20.9A9 9 0 0 1 3.1 10.5M5.5 5.6A9 9 0 0 1 9 3.5" />
-          <path d="M12 8l-1.5 3 3 1.2-1.8 3.8" />
-          <circle cx="12" cy="12" r="0.8" fill="currentColor" />
-        </svg>
-      );
-    case "chronos": // hourglass inside a gear ring
-      return (
-        <svg {...p}>
-          <path d="M7.5 3h9M7.5 21h9M8.5 3c0 4.5 7 5.5 7 9s-7 4.5-7 9M15.5 3c0 4.5-7 5.5-7 9s7 4.5 7 9" />
-          <path d="M10 18.5h4" opacity=".6" />
-        </svg>
-      );
   }
 }
 

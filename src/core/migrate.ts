@@ -49,6 +49,8 @@ export function migrate(input: any): DB {
   db.challengeTypes = db.challengeTypes?.length ? db.challengeTypes : DEFAULT_CHALLENGE_TYPES.map((t) => ({ ...t }));
   db.settings = { ...defaultSettings(), ...(db.settings ?? {}) };
   for (const c of db.challenges) {
+    if (c.theme === "void") c.theme = "archive";
+    if (c.theme === "chronos") c.theme = "machine";
     if (!THEME_IDS.includes(c.theme)) c.theme = "reality";
     c.files = c.files ?? [];
     c.waveId = c.waveId ?? null;

@@ -342,6 +342,7 @@ describe("migration", () => {
     expect(db.challenges[0]).toMatchObject({ releaseAt: 5, maxAttempts: 0, bonusAttempts: 0, hidden: false, hints: [{ text: "try harder", cost: 20 }] });
     expect(db.challenges[1].releaseAt).toBeNull();
     expect(db.challenges[1].theme).toBe("reality");
+    expect(migrate({ ...v1, challenges: [{ ...v1.challenges[0], theme: "void" }] }).challenges[0].theme).toBe("archive");
     expect(db.settings.submissionsPerMinute).toBe(10);
     expect(db.settings.freezeAt).toBeNull();
     expect(db.hintUnlocks).toEqual([]);

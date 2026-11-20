@@ -184,7 +184,7 @@ export function demoDb(now = Date.now(), adminOverride?: { salt: string; hash: s
     ch("c-echoes", {
       waveId: "w-1",
       typeId: "t-elite",
-      theme: "void",
+      theme: "archive",
       title: "Echoes in the Void",
       description:
         "A disk image recovered from a dead timeline. The files were wiped, but the void remembers. Carve what is left.",
@@ -197,7 +197,7 @@ export function demoDb(now = Date.now(), adminOverride?: { salt: string; hash: s
     ch("c-paradox", {
       waveId: null,
       typeId: "t-agent",
-      theme: "chronos",
+      theme: "machine",
       title: "Paradox Gate",
       description:
         "Four switches, three clocks and one rule: the gate opens only if every event happens before its cause. Find the only valid order.",

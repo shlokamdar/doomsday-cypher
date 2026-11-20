@@ -1,5 +1,5 @@
 export type Role = "player" | "admin";
-export type ThemeId = "reality" | "signal" | "machine" | "archive" | "void" | "chronos";
+export type ThemeId = "reality" | "signal" | "machine" | "archive";
 export type ChallengeStatus = "draft" | "scheduled" | "live" | "hidden";
 export type NotificationLevel = "info" | "important";
 

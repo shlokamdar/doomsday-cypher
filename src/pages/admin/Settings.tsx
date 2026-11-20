@@ -55,20 +55,20 @@ export function AdminSettings() {
       </form>
 
       <section className="plate grid gap-3 p-5">
-        <h2 className="h-display text-2xl">Categories</h2>
-        <p className="text-sm text-steel/70">Four editable categories (difficulty tiers by default). Shown as a chip on every challenge.</p>
+        <h2 className="h-display text-2xl">Difficulty levels</h2>
+        <p className="text-sm text-steel/70">Four editable difficulty levels, shown as a chip on every challenge.</p>
         {types.map((t, i) => (
           <div key={t.id} className="grid gap-2 sm:grid-cols-[160px_1fr_110px]">
-            <input className="input" aria-label={`Category ${i + 1} name`} value={t.name} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-            <input className="input" aria-label={`Category ${i + 1} description`} value={t.description} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
+            <input className="input" aria-label={`Difficulty ${i + 1} name`} value={t.name} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
+            <input className="input" aria-label={`Difficulty ${i + 1} description`} value={t.description} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
             <div className="flex items-center gap-2">
-              <input type="color" aria-label={`Category ${i + 1} colour`} className="h-10 w-12 cursor-pointer rounded border border-white/15 bg-transparent" value={t.color} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, color: e.target.value.toUpperCase() } : x)))} />
+              <input type="color" aria-label={`Difficulty ${i + 1} colour`} className="h-10 w-12 cursor-pointer rounded border border-white/15 bg-transparent" value={t.color} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, color: e.target.value.toUpperCase() } : x)))} />
               <code className="text-xs text-steel/70">{t.color}</code>
             </div>
           </div>
         ))}
-        <button className="btn-primary w-fit" disabled={busy} onClick={() => run(() => actions.updateChallengeTypes(types), "Categories saved.")}>
-          Save categories
+        <button className="btn-primary w-fit" disabled={busy} onClick={() => run(() => actions.updateChallengeTypes(types), "Difficulty levels saved.")}>
+          Save difficulty levels
         </button>
       </section>
 

@@ -57,8 +57,8 @@ export const BREACH_TEMPLATE = toCsv([
   BREACH_HEADER,
   [
     "Example challenge",
-    "Recruit",
-    "Signal",
+    "Easy",
+    "Crypto",
     100,
     "IAMDOOM{replace_me}",
     "Describe the challenge here.",

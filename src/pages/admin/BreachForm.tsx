@@ -29,7 +29,7 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
         </div>
         <div>
           <label className="label" htmlFor={id("type")}>
-            Category
+            Difficulty
           </label>
           <select id={id("type")} className="input" value={value.typeId} onChange={(e) => set("typeId", e.target.value)}>
             {view.challengeTypes.map((t) => (
@@ -42,8 +42,8 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
       </div>
 
       <fieldset>
-        <legend className="label">Theme</legend>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <legend className="label">Category</legend>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {THEMES.map((t) => (
             <button
               type="button"

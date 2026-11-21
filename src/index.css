@@ -296,56 +296,11 @@ body {
   50% { opacity: 0; }
 }
 
-.shockwave {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 260px;
-  height: 260px;
-  margin: -130px 0 0 -130px;
-  border: 2px solid #2bd67b;
-  border-radius: 9999px;
-  opacity: 0;
-  animation: shockwave 3.9s ease-out infinite;
-}
-@keyframes shockwave {
-  0% { transform: scale(0.4); opacity: 0.9; }
-  100% { transform: scale(2.6); opacity: 0; }
-}
-
-.ember {
-  position: absolute;
-  bottom: -10px;
-  border-radius: 9999px;
-  animation: ember-rise linear infinite;
-}
-@keyframes ember-rise {
-  0% { transform: translate(0, 0); opacity: 0; }
-  10% { opacity: 1; }
-  100% { transform: translate(var(--drift, 0), -105vh); opacity: 0; }
-}
-
 .ticker {
   animation: ticker 40s linear infinite;
 }
 @keyframes ticker {
   to { transform: translateX(-50%); }
-}
-
-.float-y {
-  animation: float-y 6s ease-in-out infinite;
-}
-@keyframes float-y {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-14px); }
-}
-
-.visor-scan {
-  animation: visor-scan 4s ease-in-out infinite;
-}
-@keyframes visor-scan {
-  0%, 100% { filter: drop-shadow(0 0 30px rgba(43, 214, 123, 0.35)); }
-  50% { filter: drop-shadow(0 0 60px rgba(43, 214, 123, 0.7)) drop-shadow(0 0 120px rgba(224, 64, 138, 0.3)); }
 }
 
 .sheen {
@@ -407,8 +362,6 @@ body {
   }
   .spark,
   .anim-leap,
-  .ember,
-  .shockwave,
   .glitch::before,
   .glitch::after {
     display: none;

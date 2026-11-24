@@ -1,12 +1,15 @@
 import { dispatch } from "../core/engine";
 import { migrate } from "../core/migrate";
 import { buildView, scrub } from "../core/view";
-import type { DB, View } from "../core/types";
-import { makeActions, type Actions, type Backend } from "./Backend";
+import { BUILTIN_SOUNDS, soundMetaFor } from "../core/sounds";
+import type { DB, SoundMeta, View } from "../core/types";
+import { builtinSoundSrc, makeActions, type Actions, type Backend } from "./Backend";
 import type { Codec, StorageLike } from "./secureStore";
 
 export const DB_KEY = "doomsday.db";
 export const SESSION_KEY = "doomsday.session";
+/** Uploaded sounds are kept beside the event data, one key each, so they never bloat it. */
+export const SOUND_PREFIX = "doomsday.sound.";
 const SESSION_MS = 14 * 60 * 60 * 1000;
 
 export interface LocalBackendOptions {
@@ -39,6 +42,37 @@ export class LocalBackend implements Backend {
   constructor(private opts: LocalBackendOptions) {
     this.now = opts.now ?? (() => Date.now());
     this.actions = makeActions((m, a) => this.exec(m, a));
+    this.actions.uploadSound = (name, dataUrl) => this.uploadSound(name, dataUrl);
+    this.actions.deleteSound = async (id) => {
+      const r = await this.exec("deleteSound", [id]);
+      this.opts.storage.removeItem(SOUND_PREFIX + id);
+      return r;
+    };
+  }
+
+  /** Browser-only: the audio goes into this browser's storage, its details into the event data. */
+  private async uploadSound(name: string, dataUrl: string): Promise<SoundMeta> {
+    const meta = soundMetaFor(name, dataUrl, this.now());
+    await this.exec("registerSound", [meta]);
+    try {
+      this.opts.storage.setItem(SOUND_PREFIX + meta.id, dataUrl);
+    } catch {
+      await this.exec("deleteSound", [meta.id]).catch(() => undefined);
+      throw new Error("This browser has no room left for that sound. Try a shorter clip.");
+    }
+    return meta;
+  }
+
+  soundSrc(ref: string): string | null {
+    if (ref.startsWith("builtin:")) return builtinSoundSrc(ref, BUILTIN_SOUNDS.find((b) => b.ref === ref)?.file);
+    if (ref.startsWith("upload:")) {
+      try {
+        return this.opts.storage.getItem(SOUND_PREFIX + ref.slice(7));
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 
   async init() {

@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { ThemeIcon, Icon } from "../../components/Icons";
 import { defaultHintCost } from "../../core/logic";
+import { CUE_KEYS, CUE_LABELS } from "../../core/sounds";
 import { THEMES } from "../../core/themes";
 import type { ChallengeInput, Release } from "../../core/types";
 import { useBackend } from "../../hooks/store";
+import { CueEditor } from "./Soundboard";
 
 export function blankInput(typeId: string): ChallengeInput {
   return { title: "", typeId, theme: "reality", points: 100, description: "", flag: "", caseSensitive: false, maxAttempts: 0, hints: [], files: [] };
@@ -132,7 +135,7 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
           {value.files.map((f, i) => (
             <li key={i} className="grid grid-cols-[140px_1fr_auto] gap-2">
               <input className="input" aria-label={`File ${i + 1} name`} placeholder="name.txt" value={f.name} onChange={(e) => set("files", value.files.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-              <input className="input" aria-label={`File ${i + 1} link`} placeholder="https://…" value={f.url} onChange={(e) => set("files", value.files.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} />
+              <input className="input" aria-label={`File ${i + 1} link`} placeholder="https://… or files/name.zip" value={f.url} onChange={(e) => set("files", value.files.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} />
               <button type="button" className="btn-ghost btn-sm" aria-label={`Remove file ${i + 1}`} onClick={() => set("files", value.files.filter((_, j) => j !== i))}>
                 <Icon.Trash />
               </button>
@@ -140,6 +143,81 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
           ))}
         </ul>
       </div>
+
+      <div className="rounded-md border border-white/10 px-4 py-3">
+        <label className="flex items-center gap-2 text-sm font-semibold text-white">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-reactor"
+            checked={!!value.python?.enabled}
+            onChange={(e) => set("python", e.target.checked ? { enabled: true, starter: value.python?.starter ?? "" } : undefined)}
+          />
+          Python workspace in this challenge
+        </label>
+        <p className="mt-1 text-xs text-steel/60">
+          Players get a code editor that runs Python in their browser, with this challenge's files (links starting with <code>files/</code>) ready to open and numpy, pandas and sqlite3 available.
+        </p>
+        {value.python?.enabled && (
+          <>
+            <label className="label mt-3" htmlFor={id("py")}>
+              Starter code (optional)
+            </label>
+            <textarea
+              id={id("py")}
+              className="input min-h-[8rem] font-mono text-[13px]"
+              spellCheck={false}
+              value={value.python.starter}
+              placeholder={'import sqlite3\ncon = sqlite3.connect("data.db")\nprint(con.execute("SELECT name FROM sqlite_master").fetchall())'}
+              onChange={(e) => set("python", { enabled: true, starter: e.target.value })}
+            />
+          </>
+        )}
+      </div>
+
+      <MemeSounds value={value} onChange={onChange} idPrefix={idPrefix} />
+    </div>
+  );
+}
+
+/** Per-challenge meme sounds. Collapsed by default; every moment follows the Soundboard default unless changed. */
+function MemeSounds({ value, onChange, idPrefix }: { value: ChallengeInput; onChange: (v: ChallengeInput) => void; idPrefix: string }) {
+  const custom = CUE_KEYS.filter((k) => value.cues?.[k]).length;
+  const [open, setOpen] = useState(custom > 0);
+  return (
+    <div>
+      <button
+        type="button"
+        className="flex w-full items-center justify-between rounded-md border border-white/10 px-4 py-3 text-left text-sm"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span>
+          <strong className="text-white">Meme sounds</strong>{" "}
+          <span className="text-steel/60">{custom ? `${custom} custom for this challenge` : "using the Soundboard defaults"}</span>
+        </span>
+        <Icon.Chevron className={`transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-3 grid gap-4 rounded-md bg-void/50 p-4">
+          {CUE_KEYS.map((k) => (
+            <div key={k}>
+              <p className="mb-1.5 text-sm font-semibold text-white">{CUE_LABELS[k].title}</p>
+              <CueEditor
+                k={k}
+                idPrefix={idPrefix}
+                allowDefault
+                value={value.cues?.[k]}
+                onChange={(c) => {
+                  const cues = { ...(value.cues ?? {}) };
+                  if (c) cues[k] = c;
+                  else delete cues[k];
+                  onChange({ ...value, cues });
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

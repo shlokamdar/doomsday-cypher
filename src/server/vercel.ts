@@ -1,6 +1,6 @@
 /* Entry point bundled by esbuild into api/_lib/server.mjs. */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handleRpc, handleState, type Req, type Res, type ServerDeps } from "./handler";
+import { handleRpc, handleSound, handleState, type Req, type Res, type ServerDeps } from "./handler";
 import { findUpstashConfig, MemoryStore, UpstashStore, type DbStore } from "./store";
 
 let cached: { store: DbStore } | null = null;
@@ -39,7 +39,7 @@ export function toReq(req: IncomingMessage, body?: unknown): Req {
 export function send(res: ServerResponse, r: Res) {
   res.statusCode = r.status;
   for (const [k, v] of Object.entries(r.headers)) res.setHeader(k, v);
-  res.end(r.body ?? "");
+  res.end(r.base64 && r.body ? Buffer.from(r.body, "base64") : (r.body ?? ""));
 }
 
 function configError(res: ServerResponse, e: unknown) {
@@ -58,6 +58,16 @@ export async function stateHandler(req: IncomingMessage, res: ServerResponse) {
     return configError(res, e);
   }
   send(res, await handleState(toReq(req), deps));
+}
+
+export async function soundHandler(req: IncomingMessage, res: ServerResponse) {
+  let deps: ServerDeps;
+  try {
+    deps = depsFromEnv();
+  } catch (e) {
+    return configError(res, e);
+  }
+  send(res, await handleSound(toReq(req), deps));
 }
 
 export async function rpcHandler(req: IncomingMessage, res: ServerResponse) {

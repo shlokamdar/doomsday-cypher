@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { clockTime, Modal, ThemeChip, TypeChip } from "../../components/Bits";
 import type { ChallengeInput, ChallengeStatus, ViewChallenge } from "../../core/types";
-import { useBackend } from "../../hooks/store";
+import { clockPhase } from "../../core/logic";
+import { useBackend, useNow } from "../../hooks/store";
 import { useRun, useUi } from "../../hooks/ui";
 import { BreachForm, localInput } from "./BreachForm";
 import { AdminTitle } from "./CommandApp";
@@ -18,8 +19,12 @@ export function Library() {
   const [filter, setFilter] = useState<ChallengeStatus | "all">("all");
   const [editing, setEditing] = useState<ChallengeInput | null>(null);
   const [scheduling, setScheduling] = useState<{ id: string; local: string } | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
   const { run, busy } = useRun();
   const { confirm } = useUi();
+  const now = useNow(5000);
+  const nextWave = view.waves.reduce((m, w) => Math.max(m, w.number), 0) + 1;
+  const togglePick = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 5 ? p : [...p, id]));
 
   const list = view.challenges.filter((c) => filter === "all" || c.status === filter);
   const groups = [
@@ -46,11 +51,18 @@ export function Library() {
       maxAttempts: c.maxAttempts,
       hints: c.hints.map((h) => ({ text: h.text ?? "", cost: h.cost })),
       files: c.files,
+      cues: c.cues,
+      python: c.python,
     });
 
   return (
     <div>
-      <AdminTitle sub="Every challenge, grouped by wave. Changes reach players on their next poll.">Challenge library</AdminTitle>
+      <AdminTitle sub="Every challenge, grouped by wave. Release drafts, reschedule, edit, hide or delete. Changes reach players on their next poll.">Challenge library</AdminTitle>
+      {clockPhase(view.settings, now) === "idle" && view.challenges.some((c) => c.status === "live") && (
+        <p className="mb-4 rounded-md border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-gold">
+          Some challenges are live, but the <strong>event clock hasn't started</strong>, so players can't see any challenges yet. They all appear the moment you start the clock on the Dashboard.
+        </p>
+      )}
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter by status">
         {(["all", "live", "scheduled", "draft", "hidden"] as const).map((f) => (
           <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)} className={`rounded-full border px-3 py-1 text-sm capitalize ${filter === f ? "border-reactor bg-reactor/15 text-reactor" : "border-white/10 text-steel"}`}>
@@ -65,22 +77,69 @@ export function Library() {
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h2 className="h-display text-2xl">{g.title}</h2>
             {g.waveId && (
-              <button
-                className="btn-gold btn-sm"
-                disabled={busy}
-                onClick={async () => {
-                  if (await confirm({ title: "Release this wave now?", body: "Every challenge in the wave goes live and a announcement is sent.", confirmLabel: "Release wave" })) await run(() => actions.releaseWave(g.waveId!), "Wave released.");
-                }}
-              >
-                Release this wave now
-              </button>
+              <span className="flex flex-wrap gap-2">
+                {view.challenges.some((c) => c.waveId === g.waveId && c.status !== "live") && (
+                <button
+                  className="btn-gold btn-sm"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (await confirm({ title: "Release this wave now?", body: "Every challenge in the wave goes live and an announcement is sent.", confirmLabel: "Release wave" })) await run(() => actions.releaseWave(g.waveId!), "Wave released.");
+                  }}
+                >
+                  Release this wave now
+                </button>
+                )}
+                <button
+                  className="btn-ghost btn-sm"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (await confirm({ title: `Split ${g.title}?`, body: "Its challenges go back to single challenges and keep their release status.", confirmLabel: "Split wave" }))
+                      await run(() => actions.splitWave(g.waveId!), `${g.title} split into single challenges.`);
+                  }}
+                >
+                  Split wave
+                </button>
+              </span>
             )}
           </div>
+          {!g.waveId && (
+            <div className="sticky top-2 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-white/10 bg-gunmetal/95 px-4 py-3 text-sm text-steel backdrop-blur">
+              <span className="flex-1">
+                Tick 5 single challenges to group them into <strong className="text-white">Wave {nextWave}</strong>.{" "}
+                <strong className="tabular-nums text-gold">{picked.length} of 5</strong> picked.
+              </span>
+              {picked.length > 0 && (
+                <button className="btn-ghost btn-sm" onClick={() => setPicked([])}>
+                  Clear
+                </button>
+              )}
+              <button
+                className="btn-primary btn-sm"
+                disabled={busy || picked.length !== 5}
+                onClick={async () => {
+                  const r = await run(() => actions.groupIntoWave(picked), `Wave ${nextWave} created. Its challenges keep their own release status.`);
+                  if (r) setPicked([]);
+                }}
+              >
+                Make Wave {nextWave}
+              </button>
+            </div>
+          )}
           <ul className="grid gap-2">
             {g.items.map((c) => {
               const n = counts(c.id);
               return (
-                <li key={c.id} className="plate flex flex-wrap items-center gap-3 p-3" data-testid="library-row">
+                <li key={c.id} className={`plate flex flex-wrap items-center gap-3 p-3 ${picked.includes(c.id) ? "ring-2 ring-reactor" : ""}`} data-testid="library-row">
+                  {!c.waveId && (
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0 cursor-pointer accent-reactor"
+                      aria-label={`Pick ${c.title} for Wave ${nextWave}`}
+                      checked={picked.includes(c.id)}
+                      disabled={!picked.includes(c.id) && picked.length >= 5}
+                      onChange={() => togglePick(c.id)}
+                    />
+                  )}
                   <div className="min-w-[200px] flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`chip capitalize ${STATUS_STYLE[c.status]}`}>{c.status}</span>
@@ -94,7 +153,9 @@ export function Library() {
                       <span>
                         {n.solves} solves · {n.attempts} attempts · {n.hints} hints opened
                       </span>
-                      <span>· {c.maxAttempts ? `${c.maxAttempts + c.bonusAttempts} attempts/squad` : "unlimited attempts"}</span>
+                      <span>· {c.maxAttempts ? `${c.maxAttempts + c.bonusAttempts} attempts/team` : "unlimited attempts"}</span>
+                      {c.python?.enabled && <span className="chip border-reactor/40 text-reactor">Python workspace</span>}
+                      {c.cues && <span className="chip border-gold/40 text-gold">Custom sounds</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">

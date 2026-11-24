@@ -19,10 +19,20 @@ export function Submissions() {
     .filter((s) => (!team || s.teamId === team) && (!ch || s.challengeId === ch) && (!result || (result === "correct") === s.correct))
     .filter((s) => !q || (s.value ?? "").toLowerCase().includes(q.toLowerCase()) || userName(s.userId).toLowerCase().includes(q.toLowerCase()));
 
+  // Wrong answers typed by more than one team on the same challenge are marked for review.
+  const byValue = new Map<string, Set<string>>();
+  for (const x of view.submissions) {
+    if (x.correct || !x.value) continue;
+    const k = `${x.challengeId}:${x.value.trim().toLowerCase()}`;
+    if (!byValue.has(k)) byValue.set(k, new Set());
+    byValue.get(k)!.add(x.teamId);
+  }
+  const shared = (x: (typeof rows)[number]) => !x.correct && !!x.value && (byValue.get(`${x.challengeId}:${x.value.trim().toLowerCase()}`)?.size ?? 0) > 1;
+
   return (
     <div>
       <AdminTitle
-        sub="Every guess, including wrong ones. Correct flags are never stored."
+        sub="Every guess, including wrong ones, newest first. Correct flags are never stored. Wrong answers typed by more than one team are marked for review."
         right={
           <button
             className="btn-ghost btn-sm"
@@ -86,6 +96,7 @@ export function Submissions() {
                   <span className={`flex items-center gap-1.5 font-mono ${s.correct ? "text-reactor" : "text-breach"}`}>
                     {s.correct ? <Icon.Check size={14} /> : <Icon.X size={14} />}
                     <span className="break-all">{s.value}</span>
+                    {shared(s) && <span className="chip shrink-0 border-gold/50 font-sans text-gold">Shared answer</span>}
                   </span>
                 </td>
               </tr>

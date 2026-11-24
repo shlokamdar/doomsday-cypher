@@ -1,4 +1,4 @@
-import { challengeStatus } from "./logic";
+import { challengeStatus, clockPhase } from "./logic";
 import type { DB, PublicUser, Solve, User, View, ViewChallenge, ViewHint, ViewSubmission } from "./types";
 
 export function publicUser(u: User, includePrivate = false): PublicUser {
@@ -11,6 +11,8 @@ export function publicUser(u: User, includePrivate = false): PublicUser {
  * Builds the filtered view for one viewer. This is the ONLY data a viewer ever receives.
  * Players never get: flag/password hashes, draft/hidden/scheduled challenges, locked hint text,
  * other teams' wrong guesses, or other teams' activity after a freeze / while hidden.
+ * Before the event clock starts, players and visitors see no challenges at all (not even titles).
+ * Usernames are sent only to Admin and to the member themselves.
  */
 export function buildView(db: DB, viewerId: string | null, now: number, version = "0", sessionInvalid = false): View {
   const me = viewerId ? db.users.find((u) => u.id === viewerId) ?? null : null;
@@ -29,7 +31,8 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
   const challengeById = new Map(db.challenges.map((c) => [c.id, c]));
 
   const challenges: ViewChallenge[] = [];
-  if (me) {
+  const started = clockPhase(s, now) !== "idle";
+  if (me && (isAdmin || started)) {
     for (const c of db.challenges) {
       const status = challengeStatus(c, now);
       if (!isAdmin && status !== "live") continue;
@@ -58,6 +61,8 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
         createdAt: c.createdAt,
         status,
       };
+      if (c.cues) vc.cues = structuredClone(c.cues);
+      if (c.python) vc.python = { ...c.python };
       if (isAdmin) vc.hasFlag = !!c.flagHash;
       challenges.push(vc);
     }
@@ -93,7 +98,7 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
       createdAt: t.createdAt,
       members: db.users
         .filter((u) => u.teamId === t.id && u.role === "player")
-        .map((u) => ({ id: u.id, username: u.username, displayName: u.displayName })),
+        .map((u) => (isAdmin || u.id === me?.id ? { id: u.id, username: u.username, displayName: u.displayName } : { id: u.id, displayName: u.displayName })),
     })),
     challengeTypes: db.challengeTypes.map((t) => ({ ...t })),
     waves,
@@ -102,6 +107,7 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
     hintUnlocks,
     submissions,
     notifications: [...db.notifications].sort((a, b) => b.at - a.at).map((n) => ({ ...n })),
+    soundboard: structuredClone(db.soundboard),
   };
   if (sessionInvalid) view.sessionInvalid = true;
   if (isAdmin) view.users = db.users.map((u) => publicUser(u, true));

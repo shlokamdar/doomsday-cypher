@@ -3,7 +3,7 @@ import { RemoteBackend, trimArgs } from "../src/backend/RemoteBackend";
 import { MemoryStorage } from "../src/backend/secureStore";
 import { MINUTE } from "../src/core/logic";
 import type { View } from "../src/core/types";
-import { handleRpc, handleState, type Req, type ServerDeps } from "../src/server/handler";
+import { handleRpc, handleSound, handleState, type Req, type ServerDeps } from "../src/server/handler";
 import { findUpstashConfig, MemoryStore, parseMeta } from "../src/server/store";
 import { DEMO_ADMIN_PW, DEMO_PLAYER_PW, input, NEW_PW, T0 } from "./helpers";
 
@@ -237,5 +237,51 @@ describe("Upstash env detection", () => {
 
   it("lists the database-looking variables it saw when nothing matches", () => {
     expect(() => findUpstashConfig({ DATABASE_URL: "postgres://x", KV_TOKEN: "x", HOME: "/root" })).toThrow(/seen: DATABASE_URL, KV_TOKEN/);
+  });
+});
+
+describe("server: EcoCypher parity", () => {
+  it("keeps uploaded audio out of the polled state and serves it on its own", async () => {
+    const s = server();
+    const admin = await demoAdmin(s);
+    const audio = "data:audio/mpeg;base64," + btoa("ID3" + "x".repeat(3000));
+    const meta = await admin.actions.uploadSound("airhorn.mp3", audio);
+    expect(meta.id).toMatch(/^snd-/);
+    expect(admin.getView()!.soundboard.sounds.map((x) => x.name)).toEqual(["airhorn"]);
+    expect((await rawView(s)).text).not.toContain("eHh4eHh4");
+    const src = admin.soundSrc(`upload:${meta.id}`)!;
+    const got = await handleSound({ method: "GET", url: src, headers: {} }, s.deps);
+    expect(got.status).toBe(200);
+    expect(got.headers["Content-Type"]).toBe("audio/mpeg");
+    expect(got.base64).toBe(true);
+    // players can't upload, and can't call the internal method directly
+    const p = await demoPlayer(s);
+    await expect(p.actions.uploadSound("x.mp3", audio)).rejects.toThrow(/Admin only/);
+    const direct = await handleRpc({ method: "POST", url: "/api/rpc", headers: {}, body: { method: "registerSound", args: [meta] } }, s.deps);
+    expect(direct.status).toBe(400);
+    await admin.actions.deleteSound(meta.id);
+    expect((await handleSound({ method: "GET", url: src, headers: {} }, s.deps)).status).toBe(404);
+  });
+
+  it("shows players and visitors no challenges until the clock starts", async () => {
+    const s = server();
+    const admin = await demoAdmin(s);
+    await admin.actions.clockReset();
+    const p = await demoPlayer(s);
+    expect(p.getView()!.challenges).toHaveLength(0);
+    expect(admin.getView()!.challenges.length).toBeGreaterThan(0);
+    await admin.actions.clockStart();
+    await p.refresh();
+    expect(p.getView()!.challenges.length).toBeGreaterThan(0);
+  });
+
+  it("sends usernames only to Admin and to the member themselves", async () => {
+    const s = server();
+    const anon = (await rawView(s)).text;
+    expect(anon).not.toContain("kira.valdez");
+    expect(anon).not.toContain('"username"');
+    const p = await demoPlayer(s);
+    const members = p.getView()!.teams.flatMap((t) => t.members);
+    expect(members.filter((m) => m.username).map((m) => m.username)).toEqual(["kira.valdez"]);
   });
 });

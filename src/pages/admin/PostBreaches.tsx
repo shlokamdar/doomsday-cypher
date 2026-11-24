@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { downloadText } from "../../components/Bits";
 import { BREACH_TEMPLATE, parseBreachImport, type RowError } from "../../core/csv";
 import type { ChallengeInput } from "../../core/types";
@@ -10,7 +11,8 @@ import { AdminTitle } from "./CommandApp";
 export function PostBreaches() {
   const { view, actions } = useBackend();
   const firstType = view.challengeTypes[0]?.id ?? "";
-  const [mode, setMode] = useState<"wave" | "single">("wave");
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<"wave" | "single">(params.get("mode") === "single" ? "single" : "wave");
   const [wave, setWave] = useState<ChallengeInput[]>(() => Array.from({ length: 5 }, () => blankInput(firstType)));
   const [slot, setSlot] = useState(0);
   const [single, setSingle] = useState<ChallengeInput>(() => blankInput(firstType));
@@ -45,7 +47,7 @@ export function PostBreaches() {
     }
   };
   const postSingle = async () => {
-    const r = await run(() => actions.postSingle(single, toRelease(release)), release.mode === "now" ? "Challenge is live. A announcement went out." : release.mode === "draft" ? "Saved as draft." : "Challenge scheduled.");
+    const r = await run(() => actions.postSingle(single, toRelease(release)), release.mode === "now" ? "Challenge is live. An announcement went out." : release.mode === "draft" ? "Saved as draft." : "Challenge scheduled.");
     if (r) {
       setSingle(queue[0] ?? blankInput(firstType));
       setQueue(queue.slice(1));

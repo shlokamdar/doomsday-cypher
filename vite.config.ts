@@ -3,9 +3,13 @@ import react from "@vitejs/plugin-react";
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // 'wasm-unsafe-eval' lets the in-browser Python (WebAssembly) start; it does not allow eval() of JS.
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "connect-src 'self'",
+  // data: lets sounds uploaded in the browser-only demo play.
+  "media-src 'self' data: blob:",
   "object-src 'none'",
   "base-uri 'self'",
 ].join("; ");
@@ -30,6 +34,8 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     plugins: [react(), cspPlugin()],
+    // The Python worker loads Pyodide with a dynamic import, which needs ES-module workers.
+    worker: { format: "es" as const },
     build: {
       sourcemap: false,
       outDir: "dist",

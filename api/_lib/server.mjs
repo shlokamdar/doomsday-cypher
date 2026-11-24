@@ -131,10 +131,13 @@ function challengeStatus(c, now) {
   return "live";
 }
 function clockPhase(s, now) {
-  if (s.startsAt === null || s.endsAt === null) return "idle";
-  if (now < s.startsAt) return "idle";
-  if (now >= s.endsAt) return "ended";
+  if (s.startsAt === null || now < s.startsAt) return "idle";
+  if (s.endsAt !== null && now >= s.endsAt) return "ended";
   return "running";
+}
+function clockName(minutes) {
+  if (!minutes) return "event clock";
+  return minutes % 60 === 0 ? `${minutes / 60}-hour clock` : `${minutes}-minute clock`;
 }
 function attemptInfo(c, teamId, subs) {
   const used = subs.filter((s) => s.teamId === teamId && s.challengeId === c.id).length;
@@ -330,8 +333,78 @@ var DEMO_PASSWORD_HASHES = {
   }
 };
 
+// src/core/sounds.ts
+var BUILTIN_SOUNDS = [
+  { ref: "builtin:faaah", name: "FAAAAH", file: "sounds/faaah.mp3" },
+  { ref: "builtin:abhi-maza", name: "Abhi maza aayega", file: "sounds/abhi-maza.mp3" },
+  { ref: "builtin:game-over", name: "Game over", file: "sounds/game-over.mp3" },
+  { ref: "builtin:seal", name: "Breach sealed chord (generated)" }
+];
+var CUE_LABELS = {
+  wrong: {
+    title: "Wrong flag",
+    when: "Any wrong guess (when more than one attempt is left, or attempts are unlimited)",
+    defaultText: "FAAAAAA!!!!!!!!"
+  },
+  lastAttempt: {
+    title: "Last attempt left",
+    when: "A wrong guess that leaves the team exactly one attempt",
+    defaultText: "ABHI MAZA AAYEGA!"
+  },
+  outOfAttempts: {
+    title: "Out of attempts",
+    when: "The wrong guess that uses the team's final attempt",
+    defaultText: "GAME OVER"
+  },
+  correct: { title: "Correct flag", when: "The team captures the flag", defaultText: "BREACH SEALED" }
+};
+var CUE_KEYS = Object.keys(CUE_LABELS);
+function defaultSoundboard() {
+  return {
+    cues: {
+      wrong: { sound: "builtin:faaah", text: "", seconds: 4 },
+      lastAttempt: { sound: "builtin:abhi-maza", text: "", seconds: 6 },
+      outOfAttempts: { sound: "builtin:game-over", text: "", seconds: 8 },
+      correct: { sound: "builtin:seal", text: "", seconds: 3 }
+    },
+    sounds: []
+  };
+}
+var MAX_SOUND_BYTES = 600 * 1024;
+var SOUND_ID = /^snd-[a-z0-9]+$/i;
+var isSoundId = (id) => typeof id === "string" && SOUND_ID.test(id);
+function soundMetaFor(name, dataUrl, now) {
+  const m = typeof dataUrl === "string" ? /^data:(audio\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl) : null;
+  if (!m) throw new UserError("That file isn't an audio file. Use an MP3, WAV, OGG or M4A.");
+  const b64 = m[2];
+  const bytes = Math.floor(b64.length * 3 / 4) - (b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0);
+  if (bytes > MAX_SOUND_BYTES)
+    throw new UserError(`That sound is ${Math.round(bytes / 1024)} KB. The limit is ${MAX_SOUND_BYTES / 1024} KB; trim it to a few seconds.`);
+  const clean = (typeof name === "string" ? name : "").replace(/\.[a-z0-9]+$/i, "").trim().slice(0, 60) || "Sound";
+  return { id: "snd-" + (newId() + newId()).replace(/[^a-z0-9]/gi, "").slice(0, 14), name: clean, bytes, mime: m[1], addedAt: now };
+}
+function knownSound(ref, sounds) {
+  return ref === "none" || BUILTIN_SOUNDS.some((b) => b.ref === ref) || ref.startsWith("upload:") && sounds.some((s) => `upload:${s.id}` === ref);
+}
+function checkCue(cue, sounds) {
+  const c = cue ?? {};
+  const sound = String(c.sound ?? "none");
+  if (!knownSound(sound, sounds)) throw new UserError("That sound isn't on the soundboard any more.");
+  const seconds = Math.min(30, Math.max(1, Math.round(Number(c.seconds) || 4)));
+  return { sound, text: String(c.text ?? "").trim().slice(0, 40), seconds };
+}
+function checkCues(cues, sounds) {
+  if (!cues || typeof cues !== "object") return void 0;
+  const out = {};
+  for (const k of CUE_KEYS) {
+    const c = cues[k];
+    if (c) out[k] = checkCue(c, sounds);
+  }
+  return Object.keys(out).length ? out : void 0;
+}
+
 // src/core/seed.ts
-var DATA_VERSION = 2;
+var DATA_VERSION = 3;
 function defaultSettings() {
   return {
     eventName: "DOOMSDAY CYPHER",
@@ -357,7 +430,8 @@ function emptyDb() {
     submissions: [],
     hintUnlocks: [],
     notifications: [],
-    settings: defaultSettings()
+    settings: defaultSettings(),
+    soundboard: defaultSoundboard()
   };
 }
 async function freshDb(adminPassword, now = Date.now()) {
@@ -615,6 +689,10 @@ function migrate(input) {
     db.hintUnlocks = db.hintUnlocks ?? [];
     db.dataVersion = 2;
   }
+  if (from < 3) {
+    db.soundboard = defaultSoundboard();
+    db.dataVersion = 3;
+  }
   db.users = db.users ?? [];
   db.teams = db.teams ?? [];
   db.waves = db.waves ?? [];
@@ -624,6 +702,11 @@ function migrate(input) {
   db.notifications = db.notifications ?? [];
   db.challengeTypes = db.challengeTypes?.length ? db.challengeTypes : DEFAULT_CHALLENGE_TYPES.map((t) => ({ ...t }));
   db.settings = { ...defaultSettings(), ...db.settings ?? {} };
+  const board = defaultSoundboard();
+  db.soundboard = db.soundboard ?? board;
+  db.soundboard.sounds = Array.isArray(db.soundboard.sounds) ? db.soundboard.sounds : [];
+  db.soundboard.cues = { ...board.cues, ...db.soundboard.cues ?? {} };
+  for (const k of CUE_KEYS) db.soundboard.cues[k] = db.soundboard.cues[k] ?? board.cues[k];
   for (const c of db.challenges) {
     if (c.theme === "void") c.theme = "archive";
     if (c.theme === "chronos") c.theme = "machine";
@@ -749,6 +832,13 @@ async function buildChallenge(db, raw, now, existing) {
     if (!/^(https?:\/\/|\/|files\/)/i.test(url)) throw new UserError(`File ${i + 1} link must start with https:// or /.`);
     return { name: str(f?.name, `File ${i + 1} name`, 120), url };
   });
+  const cues = checkCues(raw.cues, db.soundboard.sounds);
+  let python;
+  if (raw.python && typeof raw.python === "object" && raw.python.enabled) {
+    const starter = typeof raw.python.starter === "string" ? raw.python.starter : "";
+    if (starter.length > 2e4) throw new UserError("Starter code is too long (max 20,000 characters).");
+    python = { enabled: true, starter };
+  }
   const flag = typeof raw.flag === "string" ? raw.flag.trim() : "";
   if (flag.length > 500) throw new UserError("Flag is too long.");
   let flagHash = existing?.flagHash ?? "";
@@ -778,6 +868,8 @@ async function buildChallenge(db, raw, now, existing) {
     bonusAttempts: existing?.bonusAttempts ?? 0,
     hidden: existing?.hidden ?? false,
     releaseAt: existing ? existing.releaseAt : null,
+    ...cues ? { cues } : {},
+    ...python ? { python } : {},
     createdAt: existing?.createdAt ?? now
   };
 }
@@ -808,7 +900,8 @@ var METHODS = {
     async fn({ db }, teamId, usernameRaw, passwordRaw) {
       const username = typeof usernameRaw === "string" ? usernameRaw.trim().toLowerCase() : "";
       const password = typeof passwordRaw === "string" ? passwordRaw : "";
-      const user = db.users.find((u) => u.username === username);
+      const byId = teamId !== null && teamId !== void 0 && typeof usernameRaw === "string" ? db.users.find((u) => u.id === usernameRaw) : void 0;
+      const user = byId ?? db.users.find((u) => u.username === username);
       const fail = () => new UserError("Wrong team, name or password.", 401);
       if (!user) {
         await hashPassword(password, newSalt());
@@ -879,7 +972,9 @@ var METHODS = {
       const user = actor;
       const c = db.challenges.find((x) => x.id === challengeId);
       if (!c || !liveFor(c, now)) throw new UserError("Challenge not found.", 404);
-      if (clockPhase(db.settings, now) === "ended") throw new UserError("Time's up.");
+      const phase = clockPhase(db.settings, now);
+      if (phase === "idle") throw new UserError("Hints open when the event clock starts.");
+      if (phase === "ended") throw new UserError("Time's up.");
       const index = int(indexRaw, "Hint", 0, c.hints.length - 1);
       const existing = db.hintUnlocks.find((h) => h.teamId === user.teamId && h.challengeId === c.id && h.index === index);
       if (existing) return { already: true };
@@ -891,16 +986,24 @@ var METHODS = {
   clockStart: {
     auth: "admin",
     fn({ db, now }) {
+      const d = db.settings.durationMinutes;
       db.settings.startsAt = now;
-      db.settings.endsAt = now + db.settings.durationMinutes * MINUTE;
-      notify(db, now, "The Timer is ticking", `${db.settings.durationMinutes / 60} hours on the clock. Solve every challenge you can.`, "important");
+      db.settings.endsAt = d > 0 ? now + d * MINUTE : null;
+      notify(
+        db,
+        now,
+        "The Timer is ticking",
+        d > 0 ? `The ${clockName(d)} is running. Solve every challenge you can.` : "The event has started. There's no time limit: the organisers will end it.",
+        "important"
+      );
     }
   },
   clockAddMinutes: {
     auth: "admin",
     fn({ db, now }, minutes) {
       const m = int(minutes, "Minutes", 1, 600);
-      if (db.settings.startsAt === null || db.settings.endsAt === null) throw new UserError("Start the clock first.");
+      if (db.settings.startsAt === null) throw new UserError("Start the clock first.");
+      if (db.settings.endsAt === null) throw new UserError("The event has no time limit, so there's nothing to extend.");
       db.settings.endsAt = Math.max(db.settings.endsAt, now) + m * MINUTE;
       notify(db, now, `+${m} minutes on the timer`, "The organisers added more time to the clock.");
     }
@@ -909,9 +1012,19 @@ var METHODS = {
     auth: "admin",
     fn({ db, now }) {
       if (db.settings.startsAt === null) throw new UserError("The clock has not started.");
-      db.settings.endsAt = Math.min(db.settings.endsAt ?? now, now);
+      db.settings.endsAt = db.settings.endsAt === null ? now : Math.min(db.settings.endsAt, now);
       if (db.settings.startsAt > now) db.settings.startsAt = now;
       notify(db, now, "Time's up", "The Timer has hit zero. Flags are closed.", "important");
+    }
+  },
+  /** Turns a running timed clock into one with no time limit. */
+  clockRemoveLimit: {
+    auth: "admin",
+    fn({ db, now }) {
+      if (clockPhase(db.settings, now) !== "running") throw new UserError("The clock isn't running.");
+      db.settings.endsAt = null;
+      db.settings.durationMinutes = 0;
+      notify(db, now, "No time limit", "The organisers removed the time limit. The event runs until they end it.");
     }
   },
   clockReset: {
@@ -1011,6 +1124,34 @@ var METHODS = {
         c.hidden = false;
       }
       notify(db, now, `Wave ${wave.number} is live`, `${cs.length} new challenges have opened across the multiverse.`, "important");
+    }
+  },
+  /** Puts exactly five single challenges into a new wave. Each keeps its own release status. */
+  groupIntoWave: {
+    auth: "admin",
+    fn({ db, now }, idsRaw) {
+      if (!Array.isArray(idsRaw)) throw new UserError("Pick the challenges for the wave.");
+      const ids = [...new Set(idsRaw)];
+      if (ids.length !== 5) throw new UserError(`Pick exactly 5 challenges for a wave. You picked ${ids.length}.`);
+      const picked = ids.map((id) => db.challenges.find((c) => c.id === id));
+      if (picked.some((c) => !c)) throw new UserError("One of those challenges no longer exists.", 404);
+      const inWave = picked.find((c) => c.waveId);
+      if (inWave) throw new UserError(`"${inWave.title}" is already in a wave. Split that wave first.`);
+      const number = db.waves.reduce((m, w) => Math.max(m, w.number), 0) + 1;
+      const wave = { id: newId("w-"), number, createdAt: now };
+      db.waves.push(wave);
+      for (const c of picked) c.waveId = wave.id;
+      return { waveId: wave.id, number };
+    }
+  },
+  /** Turns a wave's challenges back into single challenges and removes the wave. */
+  splitWave: {
+    auth: "admin",
+    fn({ db }, waveId) {
+      const wave = db.waves.find((w) => w.id === waveId);
+      if (!wave) throw new UserError("That wave no longer exists.", 404);
+      for (const c of db.challenges) if (c.waveId === wave.id) c.waveId = null;
+      db.waves = db.waves.filter((w) => w.id !== wave.id);
     }
   },
   deleteChallenge: {
@@ -1126,7 +1267,11 @@ var METHODS = {
       const s = db.settings;
       if (patch.eventName !== void 0) s.eventName = str(patch.eventName, "Event name", 80);
       if (patch.tagline !== void 0) s.tagline = str(patch.tagline, "Tagline", 160, true);
-      if (patch.durationMinutes !== void 0) s.durationMinutes = int(patch.durationMinutes, "Duration", 1, 1440);
+      if (patch.durationMinutes !== void 0) {
+        const d = int(patch.durationMinutes, "Duration", 0, 1440);
+        if (d > 0 && d < 10) throw new UserError("Duration must be at least 10 minutes, or 0 for no time limit.");
+        s.durationMinutes = d;
+      }
       if (patch.teamSize !== void 0) s.teamSize = int(patch.teamSize, "Team size", 1, 10);
       if (patch.forcePasswordChange !== void 0) s.forcePasswordChange = bool(patch.forcePasswordChange, "Force password change");
       if (patch.submissionsPerMinute !== void 0) s.submissionsPerMinute = int(patch.submissionsPerMinute, "Submissions per minute", 1, 1e3);
@@ -1165,6 +1310,50 @@ var METHODS = {
       db.settings.freezeAt = null;
     }
   },
+  /* ---- Admin: soundboard ---- */
+  updateCue: {
+    auth: "admin",
+    fn({ db }, key, cue) {
+      if (!CUE_KEYS.includes(key)) throw new UserError("Unknown moment.");
+      db.soundboard.cues[key] = checkCue(cue, db.soundboard.sounds);
+    }
+  },
+  /**
+   * Records an uploaded sound's details. The audio itself is stored by the backend first
+   * (this browser's storage, or the server's database), never inside the event data.
+   */
+  registerSound: {
+    auth: "admin",
+    fn({ db }, metaRaw) {
+      const m = metaRaw;
+      if (!m || !isSoundId(m.id) || typeof m.mime !== "string" || !/^audio\//.test(m.mime)) throw new UserError("Bad sound.");
+      if (db.soundboard.sounds.some((x) => x.id === m.id)) return { id: m.id };
+      if (db.soundboard.sounds.length >= 40) throw new UserError("The soundboard is full (40 sounds). Delete one first.");
+      db.soundboard.sounds.push({
+        id: m.id,
+        name: str(m.name, "Sound name", 60),
+        bytes: int(m.bytes, "Size", 0, 1e7),
+        mime: m.mime,
+        addedAt: time(m.addedAt, "Added")
+      });
+      return { id: m.id };
+    }
+  },
+  deleteSound: {
+    auth: "admin",
+    fn({ db }, id) {
+      if (!isSoundId(id)) throw new UserError("Sound not found.", 404);
+      const ref = `upload:${id}`;
+      const defaults = defaultSoundboard().cues;
+      db.soundboard.sounds = db.soundboard.sounds.filter((s) => s.id !== id);
+      for (const k of CUE_KEYS) if (db.soundboard.cues[k].sound === ref) db.soundboard.cues[k] = defaults[k];
+      for (const c of db.challenges) {
+        if (!c.cues) continue;
+        for (const k of CUE_KEYS) if (c.cues[k]?.sound === ref) delete c.cues[k];
+        if (!Object.keys(c.cues).length) delete c.cues;
+      }
+    }
+  },
   /* ---- Admin: data ---- */
   exportBackup: {
     auth: "admin",
@@ -1180,27 +1369,22 @@ var METHODS = {
       replaceDb(db, validateBackup(json2));
     }
   },
+  /**
+   * Clears everything that happened in the event (teams, members, challenges, waves, submissions,
+   * hints, announcements, the clock) but keeps the admin who pressed it with the same password,
+   * the event settings, the categories and the soundboard.
+   */
   startFresh: {
     auth: "admin",
-    async fn({ db, now }) {
-      const password = tempPassword();
+    fn({ db, actor }) {
+      const me = actor;
       const next = emptyDb();
-      const salt = newSalt();
-      next.users.push({
-        id: newId("u-"),
-        username: "admin",
-        displayName: "Admin",
-        role: "admin",
-        teamId: null,
-        passwordSalt: salt,
-        passwordHash: await hashPassword(password, salt),
-        mustChangePassword: false,
-        createdAt: now
-      });
+      next.users.push({ ...structuredClone(me), mustChangePassword: false });
+      next.settings = { ...db.settings, startsAt: null, endsAt: null, freezeAt: null };
+      next.challengeTypes = structuredClone(db.challengeTypes);
+      next.soundboard = structuredClone(db.soundboard);
       replaceDb(db, next);
-      const admin = db.users[0];
-      const credential = { userId: admin.id, teamName: "Admin", displayName: "Admin", username: "admin", password };
-      return { credential, __session: admin.id };
+      return { __session: me.id };
     }
   },
   loadDemo: {
@@ -1257,7 +1441,8 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
   };
   const challengeById = new Map(db.challenges.map((c) => [c.id, c]));
   const challenges = [];
-  if (me) {
+  const started = clockPhase(s, now) !== "idle";
+  if (me && (isAdmin || started)) {
     for (const c of db.challenges) {
       const status = challengeStatus(c, now);
       if (!isAdmin && status !== "live") continue;
@@ -1284,6 +1469,8 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
         createdAt: c.createdAt,
         status
       };
+      if (c.cues) vc.cues = structuredClone(c.cues);
+      if (c.python) vc.python = { ...c.python };
       if (isAdmin) vc.hasFlag = !!c.flagHash;
       challenges.push(vc);
     }
@@ -1312,7 +1499,7 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
       id: t.id,
       name: t.name,
       createdAt: t.createdAt,
-      members: db.users.filter((u) => u.teamId === t.id && u.role === "player").map((u) => ({ id: u.id, username: u.username, displayName: u.displayName }))
+      members: db.users.filter((u) => u.teamId === t.id && u.role === "player").map((u) => isAdmin || u.id === me?.id ? { id: u.id, username: u.username, displayName: u.displayName } : { id: u.id, displayName: u.displayName })
     })),
     challengeTypes: db.challengeTypes.map((t) => ({ ...t })),
     waves,
@@ -1320,7 +1507,8 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
     solves,
     hintUnlocks,
     submissions,
-    notifications: [...db.notifications].sort((a, b) => b.at - a.at).map((n) => ({ ...n }))
+    notifications: [...db.notifications].sort((a, b) => b.at - a.at).map((n) => ({ ...n })),
+    soundboard: structuredClone(db.soundboard)
   };
   if (sessionInvalid) view.sessionInvalid = true;
   if (isAdmin) view.users = db.users.map((u) => publicUser(u, true));
@@ -1375,6 +1563,7 @@ async function verifyToken(secret, token, db, now) {
 // src/server/store.ts
 var DB_KEY = "doomsday:db";
 var META_KEY = "doomsday:meta";
+var soundKey = (id) => `doomsday:sound:${id}`;
 function parseMeta(meta) {
   if (!meta) return { version: "0", times: [] };
   const [version, times = ""] = meta.split("|");
@@ -1408,6 +1597,19 @@ var MemoryStore = class {
     this.meta = meta;
     this.writes++;
     return true;
+  }
+  blobs = /* @__PURE__ */ new Map();
+  async getBlob(key) {
+    await tick();
+    return this.blobs.get(key) ?? null;
+  }
+  async putBlob(key, value) {
+    await tick();
+    this.blobs.set(key, value);
+  }
+  async delBlob(key) {
+    await tick();
+    this.blobs.delete(key);
   }
 };
 var CAS_SCRIPT = `
@@ -1462,6 +1664,15 @@ var UpstashStore = class {
   async cas(expected, db, meta) {
     const r = await this.cmd(["EVAL", CAS_SCRIPT, 2, DB_KEY, META_KEY, expected, db, meta]);
     return Number(r) === 1;
+  }
+  async getBlob(key) {
+    return await this.cmd(["GET", key]);
+  }
+  async putBlob(key, value) {
+    await this.cmd(["SET", key, value]);
+  }
+  async delBlob(key) {
+    await this.cmd(["DEL", key]);
   }
 };
 function findUpstashConfig(env) {
@@ -1559,7 +1770,46 @@ async function handleState(req, deps) {
     return errorRes(e);
   }
 }
-async function handleRpc(req, deps) {
+async function handleSound(req, deps) {
+  try {
+    if (req.method !== "GET") return json(405, { error: "Method not allowed." });
+    const id = new URL(req.url, "http://local").searchParams.get("id");
+    const notFound = { status: 404, headers: { ...BASE_HEADERS, "Content-Type": "text/plain" }, body: "Not found" };
+    if (!isSoundId(id)) return notFound;
+    const dataUrl = await deps.store.getBlob(soundKey(id));
+    const m = dataUrl ? /^data:(audio\/[a-z0-9.+-]+);base64,(.*)$/i.exec(dataUrl) : null;
+    if (!m) return notFound;
+    return {
+      status: 200,
+      headers: { "Content-Type": m[1], "Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" },
+      body: m[2],
+      base64: true
+    };
+  } catch (e) {
+    return errorRes(e);
+  }
+}
+var INTERNAL = /* @__PURE__ */ new Set(["registerSound"]);
+async function soundRpc(method, args, token, deps) {
+  const now = (deps.now ?? Date.now)();
+  const { db } = await load(deps, now);
+  const actorId = await verifyToken(deps.secret, token, db, now);
+  const actor = actorId ? db.users.find((u) => u.id === actorId) : void 0;
+  if (!actor) return json(401, { error: "Please log in again." });
+  if (actor.role !== "admin") return json(403, { error: "Admin only." });
+  if (method === "uploadSound") {
+    const meta = soundMetaFor(args[0], args[1], now);
+    await deps.store.putBlob(soundKey(meta.id), args[1]);
+    const r2 = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "registerSound", args: [meta] } }, deps, true);
+    if (r2.status !== 200) await deps.store.delBlob(soundKey(meta.id));
+    else r2.body = JSON.stringify({ result: meta });
+    return r2;
+  }
+  const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "deleteSound", args } }, deps, true);
+  if (r.status === 200 && isSoundId(args[0])) await deps.store.delBlob(soundKey(args[0]));
+  return r;
+}
+async function handleRpc(req, deps, internal = false) {
   try {
     if (req.method !== "POST") return json(405, { error: "Method not allowed." });
     let body = req.body;
@@ -1572,6 +1822,11 @@ async function handleRpc(req, deps) {
     }
     const method = body?.method;
     const args = body?.args ?? [];
+    if (!internal && (method === "uploadSound" || method === "deleteSound")) {
+      if (!Array.isArray(args)) return json(400, { error: "Bad request." });
+      return await soundRpc(method, args, bearer(req), deps);
+    }
+    if (!internal && INTERNAL.has(method)) return json(400, { error: "Unknown action." });
     if (typeof method !== "string" || !Object.prototype.hasOwnProperty.call(METHODS, method)) {
       return json(400, { error: "Unknown action." });
     }
@@ -1636,7 +1891,7 @@ function toReq(req, body) {
 function send(res, r) {
   res.statusCode = r.status;
   for (const [k, v] of Object.entries(r.headers)) res.setHeader(k, v);
-  res.end(r.body ?? "");
+  res.end(r.base64 && r.body ? Buffer.from(r.body, "base64") : r.body ?? "");
 }
 function configError(res, e) {
   send(res, {
@@ -1653,6 +1908,15 @@ async function stateHandler(req, res) {
     return configError(res, e);
   }
   send(res, await handleState(toReq(req), deps));
+}
+async function soundHandler(req, res) {
+  let deps;
+  try {
+    deps = depsFromEnv();
+  } catch (e) {
+    return configError(res, e);
+  }
+  send(res, await handleSound(toReq(req), deps));
 }
 async function rpcHandler(req, res) {
   let deps;
@@ -1674,6 +1938,7 @@ export {
   readBody,
   rpcHandler,
   send,
+  soundHandler,
   stateHandler,
   toReq
 };

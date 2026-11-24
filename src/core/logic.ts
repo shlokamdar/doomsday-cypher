@@ -20,17 +20,39 @@ export function challengeStatus(c: { hidden: boolean; releaseAt: number | null }
 
 export type ClockPhase = "idle" | "running" | "ended";
 
+/**
+ * idle: not started. running: started and not over. ended: past endsAt.
+ * A started clock with no endsAt has no time limit and runs until Admin presses "End now".
+ */
 export function clockPhase(s: Pick<Settings, "startsAt" | "endsAt">, now: number): ClockPhase {
-  if (s.startsAt === null || s.endsAt === null) return "idle";
-  if (now < s.startsAt) return "idle";
-  if (now >= s.endsAt) return "ended";
+  if (s.startsAt === null || now < s.startsAt) return "idle";
+  if (s.endsAt !== null && now >= s.endsAt) return "ended";
   return "running";
 }
 
+/** True when the clock has (or will have, once started) no time limit. */
+export function isUnlimited(s: Pick<Settings, "startsAt" | "endsAt" | "durationMinutes">): boolean {
+  return s.startsAt !== null ? s.endsAt === null : s.durationMinutes === 0;
+}
+
+/** Time left. Infinity when there is no time limit. */
 export function remainingMs(s: Pick<Settings, "startsAt" | "endsAt" | "durationMinutes">, now: number): number {
+  if (isUnlimited(s)) return Infinity;
   if (s.startsAt === null || s.endsAt === null) return s.durationMinutes * MINUTE;
   if (now < s.startsAt) return s.endsAt - s.startsAt;
   return Math.max(0, s.endsAt - now);
+}
+
+/** Time since the clock started (for the count-up clock when there is no time limit). */
+export function elapsedMs(s: Pick<Settings, "startsAt" | "endsAt">, now: number): number {
+  if (s.startsAt === null) return 0;
+  return Math.max(0, Math.min(now, s.endsAt ?? now) - s.startsAt);
+}
+
+/** "3-hour clock", "90-minute clock" or "event clock" (no time limit), for button labels. */
+export function clockName(minutes: number): string {
+  if (!minutes) return "event clock";
+  return minutes % 60 === 0 ? `${minutes / 60}-hour clock` : `${minutes}-minute clock`;
 }
 
 export function formatClock(ms: number): string {

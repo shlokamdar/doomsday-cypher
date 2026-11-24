@@ -3,9 +3,12 @@ import type {
   ChallengeInput,
   ChallengeType,
   Credential,
+  Cue,
+  CueKey,
   NotificationLevel,
   Release,
   Settings,
+  SoundMeta,
   SubmitResult,
   View,
 } from "../core/types";
@@ -21,6 +24,7 @@ export interface Actions {
   clockAddMinutes(minutes: number): Promise<unknown>;
   clockEnd(): Promise<unknown>;
   clockReset(): Promise<unknown>;
+  clockRemoveLimit(): Promise<unknown>;
 
   saveChallenge(input: ChallengeInput): Promise<{ id: string }>;
   postWave(inputs: ChallengeInput[], release: Release): Promise<{ waveId: string; number: number; ids: string[] }>;
@@ -32,6 +36,8 @@ export interface Actions {
   releaseWave(waveId: string): Promise<unknown>;
   deleteChallenge(id: string): Promise<unknown>;
   grantAttempts(id: string, n?: number): Promise<unknown>;
+  groupIntoWave(ids: string[]): Promise<{ waveId: string; number: number }>;
+  splitWave(waveId: string): Promise<unknown>;
 
   createTeam(name: string, members: string[]): Promise<{ teamId: string; credentials: Credential[] }>;
   importTeams(csv: string): Promise<{ credentials: Credential[]; errors: RowError[] }>;
@@ -50,9 +56,14 @@ export interface Actions {
   freezeScoreboard(): Promise<unknown>;
   unfreezeScoreboard(): Promise<unknown>;
 
+  updateCue(key: CueKey, cue: Cue): Promise<unknown>;
+  /** Stores the audio (a data: URL) and adds it to the soundboard. Handled by each backend. */
+  uploadSound(name: string, dataUrl: string): Promise<SoundMeta>;
+  deleteSound(id: string): Promise<unknown>;
+
   exportBackup(): Promise<{ json: string }>;
   importBackup(json: string): Promise<unknown>;
-  startFresh(): Promise<{ credential: Credential }>;
+  startFresh(): Promise<unknown>;
   loadDemo(): Promise<unknown>;
 }
 
@@ -65,6 +76,7 @@ export const ACTION_NAMES: (keyof Actions)[] = [
   "clockAddMinutes",
   "clockEnd",
   "clockReset",
+  "clockRemoveLimit",
   "saveChallenge",
   "postWave",
   "postSingle",
@@ -75,6 +87,8 @@ export const ACTION_NAMES: (keyof Actions)[] = [
   "releaseWave",
   "deleteChallenge",
   "grantAttempts",
+  "groupIntoWave",
+  "splitWave",
   "createTeam",
   "importTeams",
   "renameTeam",
@@ -89,6 +103,9 @@ export const ACTION_NAMES: (keyof Actions)[] = [
   "setScoreboardVisible",
   "freezeScoreboard",
   "unfreezeScoreboard",
+  "updateCue",
+  "uploadSound",
+  "deleteSound",
   "exportBackup",
   "importBackup",
   "startFresh",
@@ -101,6 +118,18 @@ export function makeActions(exec: (method: string, args: unknown[]) => Promise<u
   return out as unknown as Actions;
 }
 
+/** Where a built-in sound lives, relative to the site. */
+export function builtinSoundSrc(ref: string, file: string | undefined): string | null {
+  if (!file) return null;
+  let base = "/";
+  try {
+    base = import.meta.env.BASE_URL ?? "/";
+  } catch {
+    /* not built by Vite */
+  }
+  return `${base}${file}`;
+}
+
 export interface Backend {
   readonly mode: "local" | "remote";
   readonly actions: Actions;
@@ -109,6 +138,8 @@ export interface Backend {
   subscribe(fn: () => void): () => void;
   refresh(): Promise<void>;
   logout(): Promise<void>;
+  /** A URL the browser can play for a sound reference ("builtin:…" or "upload:…"), or null. */
+  soundSrc(ref: string): string | null;
   /** serverNow − Date.now(), so clocks agree with the server. */
   clockOffset(): number;
   online(): boolean;

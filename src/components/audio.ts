@@ -48,29 +48,90 @@ function synthFaaah() {
   lfo.stop(t + 1.45);
 }
 
-/** Wrong flag: plays public/sounds/faaah.mp3, falling back to a synth if it can't play. */
+/** Wrong flag fallback: plays public/sounds/faaah.mp3, else the synth. */
 export function playWrong() {
-  if (!soundOn()) return;
+  playSound(`${import.meta.env.BASE_URL}sounds/faaah.mp3`, 4, synthFaaah);
+}
+
+/* ---------------- cue playback (Soundboard) ---------------- */
+
+const clips = new Map<string, HTMLAudioElement>();
+let stopTimer: ReturnType<typeof setTimeout> | null = null;
+let playing: HTMLAudioElement | null = null;
+
+/** Loads a clip ahead of time so it starts instantly. */
+export function preloadSound(src: string | null) {
+  if (!src || clips.has(src) || typeof Audio === "undefined") return;
   try {
-    const el = new Audio(`${import.meta.env.BASE_URL}sounds/faaah.mp3`);
-    el.volume = 0.9;
-    let fellBack = false;
-    const fallback = () => {
-      if (!fellBack) {
-        fellBack = true;
-        synthFaaah();
-      }
-    };
-    el.addEventListener("error", fallback, { once: true });
-    el.play().catch(fallback);
+    const a = new Audio(src);
+    a.preload = "auto";
+    clips.set(src, a);
   } catch {
-    synthFaaah();
+    /* no audio */
   }
+}
+
+/**
+ * Plays a sound for at most `seconds`, fading out at the end. `src` null means a generated sound
+ * (`synth`) or nothing. Respects the player's sound switch and stops whatever was playing before.
+ */
+export function playSound(src: string | null, seconds: number, synth?: () => void) {
+  if (!soundOn()) return;
+  if (playing) {
+    playing.pause();
+    playing = null;
+  }
+  if (stopTimer) clearTimeout(stopTimer);
+  if (!src) {
+    synth?.();
+    return;
+  }
+  try {
+    let a = clips.get(src);
+    if (!a) {
+      a = new Audio(src);
+      clips.set(src, a);
+    }
+    a.currentTime = 0;
+    a.volume = 0.9;
+    playing = a;
+    void a.play().catch(() => synth?.());
+    const el = a;
+    stopTimer = setTimeout(() => {
+      let v = el.volume;
+      const fade = setInterval(() => {
+        v -= 0.1;
+        if (v <= 0.05) {
+          clearInterval(fade);
+          el.pause();
+        } else el.volume = v;
+      }, 40);
+    }, Math.max(1, seconds) * 1000);
+  } catch {
+    synth?.();
+  }
+}
+
+/** The generated fallback for a built-in sound reference, if it has one. */
+export function synthFor(ref: string): (() => void) | undefined {
+  if (ref === "builtin:seal") return playSealSynth;
+  if (ref === "builtin:faaah") return synthFaaah;
+  return undefined;
+}
+
+/** Plays a Soundboard sound reference ("none", "builtin:…", "upload:…"). */
+export function playRef(ref: string, src: string | null, seconds: number) {
+  if (ref === "none") return;
+  playSound(src, seconds, synthFor(ref));
 }
 
 /** Correct flag: a synthesised power-up chord (no audio file). */
 export function playSeal() {
   if (!soundOn()) return;
+  playSealSynth();
+}
+
+function playSealSynth() {
   const a = audio();
   if (!a) return;
   const t = a.currentTime;

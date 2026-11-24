@@ -21,7 +21,7 @@ export function LoginPage() {
   if (view.me) return <Navigate to={view.me.role === "admin" ? "/admin" : "/challenges"} replace />;
 
   const team = view.teams.find((t) => t.id === teamId);
-  const member = team?.members.find((m) => m.username === username);
+  const member = team?.members.find((m) => m.id === username);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -91,9 +91,9 @@ export function LoginPage() {
                       <button
                         type="button"
                         key={m.id}
-                        aria-pressed={username === m.username}
-                        onClick={() => setUsername(m.username)}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${username === m.username ? "border-gold bg-gold text-void" : "border-white/15 text-steel hover:border-white/40"}`}
+                        aria-pressed={username === m.id}
+                        onClick={() => setUsername(m.id)}
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${username === m.id ? "border-gold bg-gold text-void" : "border-white/15 text-steel hover:border-white/40"}`}
                       >
                         {m.displayName}
                       </button>

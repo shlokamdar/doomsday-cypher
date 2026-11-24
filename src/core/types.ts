@@ -3,6 +3,36 @@ export type ThemeId = "reality" | "signal" | "machine" | "archive";
 export type ChallengeStatus = "draft" | "scheduled" | "live" | "hidden";
 export type NotificationLevel = "info" | "important";
 
+/** The moments that can play a meme sound and pop-up. */
+export type CueKey = "wrong" | "lastAttempt" | "outOfAttempts" | "correct";
+/**
+ * What happens at one moment. `sound` is "none", "builtin:<name>" or "upload:<id>".
+ * `text` is the big pop-up line (empty = the built-in line). `seconds` stops long clips early.
+ */
+export interface Cue {
+  sound: string;
+  text: string;
+  seconds: number;
+}
+/** An admin-uploaded sound. The audio itself is stored separately and fetched on demand. */
+export interface SoundMeta {
+  id: string;
+  name: string;
+  bytes: number;
+  mime: string;
+  addedAt: number;
+}
+export interface Soundboard {
+  cues: Record<CueKey, Cue>;
+  sounds: SoundMeta[];
+}
+export type ChallengeCues = Partial<Record<CueKey, Cue>>;
+/** In-browser Python workspace shown in the challenge window, with optional starter code. */
+export interface PythonWorkspace {
+  enabled: boolean;
+  starter: string;
+}
+
 export interface User {
   id: string;
   username: string;
@@ -65,6 +95,9 @@ export interface Challenge {
   hidden: boolean;
   /** null = draft, future = scheduled, past = live */
   releaseAt: number | null;
+  /** Meme sound/pop-up overrides for this challenge. Missing keys use the Soundboard defaults. */
+  cues?: ChallengeCues;
+  python?: PythonWorkspace;
   createdAt: number;
 }
 
@@ -101,6 +134,7 @@ export interface Settings {
   tagline: string;
   startsAt: number | null;
   endsAt: number | null;
+  /** 0 = no time limit: the clock counts up until Admin presses "End now". */
   durationMinutes: number;
   teamSize: number;
   scoreboardVisible: boolean;
@@ -121,6 +155,7 @@ export interface DB {
   hintUnlocks: HintUnlock[];
   notifications: Notification[];
   settings: Settings;
+  soundboard: Soundboard;
 }
 
 /* ---------------- View: what one viewer is allowed to see ---------------- */
@@ -138,7 +173,8 @@ export interface ViewTeam {
   id: string;
   name: string;
   createdAt: number;
-  members: { id: string; username: string; displayName: string }[];
+  /** `username` is only sent to Admin and to the member themselves. */
+  members: { id: string; username?: string; displayName: string }[];
 }
 
 export interface ViewHint {
@@ -167,6 +203,8 @@ export interface ViewChallenge {
   releaseAt: number | null;
   createdAt: number;
   status: ChallengeStatus;
+  cues?: ChallengeCues;
+  python?: PythonWorkspace;
   /** Admin only */
   hasFlag?: boolean;
 }
@@ -207,6 +245,7 @@ export interface View {
   /** The viewer's own team's submissions (every submission for Admin). */
   submissions: ViewSubmission[];
   notifications: Notification[];
+  soundboard: Soundboard;
   /** Admin only */
   users?: PublicUser[];
 }
@@ -224,6 +263,8 @@ export interface ChallengeInput {
   maxAttempts: number;
   hints: Hint[];
   files: FileLink[];
+  cues?: ChallengeCues;
+  python?: PythonWorkspace;
 }
 
 export type Release = { mode: "now" } | { mode: "schedule"; at: number } | { mode: "draft" };

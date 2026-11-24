@@ -7,6 +7,7 @@ import { DATA_VERSION, freshDb } from "../src/core/seed";
 import {
   adminWorld,
   ADMIN_PW,
+  ADMIN_PW2,
   DEMO_PLAYER_PW,
   demoWorld,
   input,
@@ -297,14 +298,27 @@ describe("clock, squads, notifications, backups", () => {
     await w.admin.actions.importBackup(json);
   });
 
-  it("start fresh shows a new admin password once and keeps Command logged in", async () => {
+  it("start fresh keeps the admin's login, settings, categories and soundboard", async () => {
     const w = await adminWorld();
     await joinSquad(w, w.admin);
-    const r = await w.admin.actions.startFresh();
-    expect(r.credential.password).toMatch(/^[\w-]{14}$/);
+    await w.admin.actions.updateSettings({ eventName: "Warm-up", durationMinutes: 90 });
+    await w.admin.actions.updateCue("wrong", { sound: "builtin:game-over", text: "NOPE", seconds: 3 });
+    await w.admin.actions.clockStart();
+    await w.admin.actions.postSingle(input(), { mode: "now" });
+    await w.admin.actions.startFresh();
     const v = w.admin.getView()!;
     expect(v.me?.role).toBe("admin");
     expect(v.teams).toHaveLength(0);
+    expect(v.challenges).toHaveLength(0);
+    expect(v.notifications).toHaveLength(0);
+    expect(v.settings.eventName).toBe("Warm-up");
+    expect(v.settings.durationMinutes).toBe(90);
+    expect(v.settings.startsAt).toBeNull();
+    expect(v.soundboard.cues.wrong.text).toBe("NOPE");
+    // still the same password
+    await w.admin.logout();
+    await w.admin.actions.login(null, "admin", ADMIN_PW2);
+    expect(w.admin.getView()!.me?.role).toBe("admin");
   });
 
   it("stores only ciphertext in localStorage", async () => {
@@ -347,5 +361,122 @@ describe("migration", () => {
     expect(db.settings.freezeAt).toBeNull();
     expect(db.hintUnlocks).toEqual([]);
     expect("released" in db.challenges[0]).toBe(false);
+  });
+});
+
+describe("EcoCypher parity", () => {
+  it("shows players no challenges until the event clock starts (Admin still sees them)", async () => {
+    const w = await adminWorld();
+    const { players } = await joinSquad(w, w.admin);
+    await w.admin.actions.postSingle(input({ title: "Early" }), { mode: "now" });
+    await players[0].refresh();
+    expect(players[0].getView()!.challenges).toHaveLength(0);
+    expect(w.admin.getView()!.challenges).toHaveLength(1);
+    await expect(players[0].actions.unlockHint(w.admin.getView()!.challenges[0].id, 0)).rejects.toThrow();
+    await w.admin.actions.clockStart();
+    await players[0].refresh();
+    expect(players[0].getView()!.challenges.map((c) => c.title)).toEqual(["Early"]);
+  });
+
+  it("supports a clock with no time limit that runs until Admin ends it", async () => {
+    const w = await adminWorld();
+    await w.admin.actions.updateSettings({ durationMinutes: 0 });
+    await w.admin.actions.clockStart();
+    let s = w.admin.getView()!.settings;
+    expect(s.startsAt).toBe(w.clock.t);
+    expect(s.endsAt).toBeNull();
+    expect(remainingMs(s, w.clock.t + 1000 * MINUTE)).toBe(Infinity);
+    await expect(w.admin.actions.clockAddMinutes(10)).rejects.toThrow(/no time limit/);
+    const { players } = await joinSquad(w, w.admin);
+    const flag = randomFlag();
+    await w.admin.actions.postSingle(input({ flag }), { mode: "now" });
+    w.clock.t += 600 * MINUTE;
+    const id = w.admin.getView()!.challenges[0].id;
+    expect((await players[0].actions.submitFlag(id, flag)).correct).toBe(true);
+    await w.admin.actions.clockEnd();
+    s = w.admin.getView()!.settings;
+    expect(s.endsAt).toBe(w.clock.t);
+  });
+
+  it("can remove the time limit from a running clock", async () => {
+    const w = await startedEvent();
+    await w.admin.actions.clockRemoveLimit();
+    const s = w.admin.getView()!.settings;
+    expect(s.endsAt).toBeNull();
+    expect(s.durationMinutes).toBe(0);
+  });
+
+  it("groups five single challenges into a wave and splits it back", async () => {
+    const w = await startedEvent();
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) ids.push((await w.admin.actions.postSingle(input({ title: `S${i}` }), { mode: i ? "draft" : "now" })).id);
+    await expect(w.admin.actions.groupIntoWave(ids.slice(0, 4))).rejects.toThrow(/exactly 5/);
+    const r = await w.admin.actions.groupIntoWave(ids);
+    expect(r.number).toBe(1);
+    let v = w.admin.getView()!;
+    expect(v.challenges.every((c) => c.waveId === r.waveId)).toBe(true);
+    expect(v.challenges.filter((c) => c.status === "live")).toHaveLength(1); // release status kept
+    await expect(w.admin.actions.groupIntoWave(ids)).rejects.toThrow(/already in a wave/);
+    await w.admin.actions.splitWave(r.waveId);
+    v = w.admin.getView()!;
+    expect(v.waves).toHaveLength(0);
+    expect(v.challenges.every((c) => c.waveId === null)).toBe(true);
+  });
+
+  it("keeps per-challenge meme cues and the Python workspace, and validates sounds", async () => {
+    const w = await startedEvent();
+    const { id } = await w.admin.actions.postSingle(
+      input({ cues: { wrong: { sound: "builtin:abhi-maza", text: "Try again", seconds: 2 } }, python: { enabled: true, starter: "print(1)" } }),
+      { mode: "now" },
+    );
+    const { players } = await joinSquad(w, w.admin);
+    const pc = players[0].getView()!.challenges.find((c) => c.id === id)!;
+    expect(pc.cues?.wrong?.text).toBe("Try again");
+    expect(pc.python).toEqual({ enabled: true, starter: "print(1)" });
+    await expect(w.admin.actions.postSingle(input({ cues: { wrong: { sound: "upload:snd-nope", text: "", seconds: 2 } } }), { mode: "now" })).rejects.toThrow(/soundboard/);
+  });
+
+  it("stores uploaded sounds outside the event data and cleans up on delete", async () => {
+    const w = await adminWorld();
+    const audio = "data:audio/mpeg;base64," + btoa("ID3" + "x".repeat(3000));
+    const meta = await w.admin.actions.uploadSound("airhorn.mp3", audio);
+    expect(meta.name).toBe("airhorn");
+    expect(w.admin.getView()!.soundboard.sounds).toHaveLength(1);
+    expect(JSON.stringify(w.admin.getView())).not.toContain("eHh4eHh4");
+    expect(w.admin.soundSrc(`upload:${meta.id}`)).toBe(audio);
+    await w.admin.actions.updateCue("correct", { sound: `upload:${meta.id}`, text: "", seconds: 3 });
+    await w.admin.actions.deleteSound(meta.id);
+    const v = w.admin.getView()!;
+    expect(v.soundboard.sounds).toHaveLength(0);
+    expect(v.soundboard.cues.correct.sound).toBe("builtin:seal");
+    expect(w.admin.soundSrc(`upload:${meta.id}`)).toBeNull();
+    await expect(w.admin.actions.uploadSound("x.txt", "data:text/plain;base64,aGk=")).rejects.toThrow(/audio/);
+  });
+
+  it("never sends other members' usernames to players", async () => {
+    const w = await startedEvent();
+    const { players, teamId } = await joinSquad(w, w.admin);
+    const v = players[0].getView()!;
+    const mine = v.teams.find((t) => t.id === teamId)!;
+    expect(mine.members.filter((m) => m.username)).toHaveLength(1);
+    expect(mine.members.find((m) => m.username)?.id).toBe(v.me?.id);
+  });
+
+  it("lets members log in with their member id", async () => {
+    const w = await adminWorld();
+    const { teamId, credentials } = await w.admin.actions.createTeam("Beta", ["Cy Three"]);
+    const p = await w.backend();
+    await p.actions.login(teamId, credentials[0].userId, credentials[0].password);
+    expect(p.getView()!.me?.displayName).toBe("Cy Three");
+  });
+
+  it("upgrades version 2 data with a default soundboard", async () => {
+    const db = await freshDb(ADMIN_PW);
+    const old = JSON.parse(JSON.stringify(db));
+    delete old.soundboard;
+    old.dataVersion = 2;
+    const m = migrate(old);
+    expect(m.dataVersion).toBe(DATA_VERSION);
+    expect(m.soundboard.cues.lastAttempt.sound).toBe("builtin:abhi-maza");
   });
 });

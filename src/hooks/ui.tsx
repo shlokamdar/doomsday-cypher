@@ -16,9 +16,12 @@ interface UiCtx {
   confirm(opts: ConfirmOpts): Promise<boolean>;
   /** Fx triggers: each call bumps a counter that the full-screen pop-ups watch. */
   fx: FxState;
-  fireWrong(): void;
-  fireSeal(title: string, points: number): void;
+  /** Wrong-flag pop-up in one of three moods. `text` replaces the big line (empty = default). */
+  fireWrong(mood?: MemeMood, text?: string): void;
+  fireSeal(title: string, points: number, text?: string): void;
 }
+
+export type MemeMood = "wrong" | "lastAttempt" | "outOfAttempts";
 
 interface ConfirmOpts {
   title: string;
@@ -28,8 +31,8 @@ interface ConfirmOpts {
 }
 
 export interface FxState {
-  wrong: number;
-  seal: { n: number; title: string; points: number };
+  wrong: { n: number; mood: MemeMood; text: string };
+  seal: { n: number; title: string; points: number; text: string };
 }
 
 const Ui = createContext<UiCtx | null>(null);
@@ -37,7 +40,7 @@ const Ui = createContext<UiCtx | null>(null);
 export function UiProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [dialog, setDialog] = useState<(ConfirmOpts & { resolve: (v: boolean) => void }) | null>(null);
-  const [fx, setFx] = useState<FxState>({ wrong: 0, seal: { n: 0, title: "", points: 0 } });
+  const [fx, setFx] = useState<FxState>({ wrong: { n: 0, mood: "wrong", text: "" }, seal: { n: 0, title: "", points: 0, text: "" } });
   const idRef = useRef(0);
 
   const toast = useCallback((kind: ToastKind, text: string, title?: string) => {
@@ -50,9 +53,12 @@ export function UiProvider({ children }: { children: ReactNode }) {
     (opts: ConfirmOpts) => new Promise<boolean>((resolve) => setDialog({ ...opts, resolve })),
     [],
   );
-  const fireWrong = useCallback(() => setFx((f) => ({ ...f, wrong: f.wrong + 1 })), []);
+  const fireWrong = useCallback(
+    (mood: MemeMood = "wrong", text = "") => setFx((f) => ({ ...f, wrong: { n: f.wrong.n + 1, mood, text } })),
+    [],
+  );
   const fireSeal = useCallback(
-    (title: string, points: number) => setFx((f) => ({ ...f, seal: { n: f.seal.n + 1, title, points } })),
+    (title: string, points: number, text = "") => setFx((f) => ({ ...f, seal: { n: f.seal.n + 1, title, points, text } })),
     [],
   );
 

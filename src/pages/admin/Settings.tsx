@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clockTime, downloadText } from "../../components/Bits";
-import type { ChallengeType, Credential } from "../../core/types";
+import type { ChallengeType } from "../../core/types";
 import { useBackend } from "../../hooks/store";
 import { useRun, useUi } from "../../hooks/ui";
 import { AdminTitle } from "./CommandApp";
-import { CredentialsModal } from "./Credentials";
 
 export function AdminSettings() {
   const { view, actions } = useBackend();
@@ -13,9 +12,11 @@ export function AdminSettings() {
   const { confirm } = useUi();
   const [ev, setEv] = useState({ eventName: s.eventName, tagline: s.tagline, durationMinutes: s.durationMinutes, teamSize: s.teamSize, submissionsPerMinute: s.submissionsPerMinute, forcePasswordChange: s.forcePasswordChange });
   const [types, setTypes] = useState<ChallengeType[]>(view.challengeTypes);
-  const [fresh, setFresh] = useState<Credential[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => setTypes(view.challengeTypes), [view.challengeTypes]);
+  // "Remove time limit" on the dashboard changes the duration: keep the form in step.
+  useEffect(() => setEv((x) => ({ ...x, durationMinutes: s.durationMinutes })), [s.durationMinutes]);
+  const unlimited = ev.durationMinutes === 0;
 
   const saveEvent = (e: FormEvent) => {
     e.preventDefault();
@@ -35,8 +36,20 @@ export function AdminSettings() {
           <Field label="Tagline" id="ev-tag">
             <input id="ev-tag" className="input" value={ev.tagline} onChange={(e) => setEv({ ...ev, tagline: e.target.value })} />
           </Field>
-          <Field label="Duration (minutes)" id="ev-dur">
-            <input id="ev-dur" type="number" min={1} className="input" value={ev.durationMinutes} onChange={(e) => setEv({ ...ev, durationMinutes: Number(e.target.value) })} />
+          <Field label="Clock length (minutes)" id="ev-dur">
+            <input
+              id="ev-dur"
+              type="number"
+              min={10}
+              className="input disabled:opacity-40"
+              disabled={unlimited}
+              value={unlimited ? 180 : ev.durationMinutes}
+              onChange={(e) => setEv({ ...ev, durationMinutes: Number(e.target.value) })}
+            />
+            <label className="mt-1.5 flex items-center gap-2 text-sm text-steel">
+              <input type="checkbox" className="h-4 w-4 accent-reactor" checked={unlimited} onChange={(e) => setEv({ ...ev, durationMinutes: e.target.checked ? 0 : 180 })} />
+              No time limit (runs until you press End now)
+            </label>
           </Field>
           <Field label="Team size" id="ev-size">
             <input id="ev-size" type="number" min={1} max={10} className="input" value={ev.teamSize} onChange={(e) => setEv({ ...ev, teamSize: Number(e.target.value) })} />
@@ -52,6 +65,7 @@ export function AdminSettings() {
         <button className="btn-primary w-fit" disabled={busy}>
           Save event settings
         </button>
+        <p className="text-xs text-steel/60">Start, extend and end the clock from the dashboard.</p>
       </form>
 
       <section className="plate grid gap-3 p-5">
@@ -101,7 +115,11 @@ export function AdminSettings() {
       </section>
 
       <section className="plate grid gap-3 p-5">
-        <h2 className="h-display text-2xl">Data</h2>
+        <h2 className="h-display text-2xl">Data and security</h2>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-steel/80">
+          <li>Flags and passwords are stored only as salted PBKDF2 hashes. Nobody, including admins, can read a flag back.</li>
+          <li>In the browser-only (GitHub Pages) version, data is encrypted with AES-256 using a key the browser won't let anyone export. Export a backup before clearing browser data.</li>
+        </ul>
         <div className="flex flex-wrap gap-2">
           <button
             className="btn-ghost"
@@ -133,10 +151,15 @@ export function AdminSettings() {
             className="btn-danger"
             disabled={busy}
             onClick={async () => {
-              if (await confirm({ title: "Start fresh?", body: "Deletes every team, challenge, submission and announcement. A new admin password is shown once.", danger: true, confirmLabel: "Start fresh" })) {
-                const r = await run(() => actions.startFresh(), "Fresh event created.");
-                if (r) setFresh([r.credential]);
-              }
+              if (
+                await confirm({
+                  title: "Start fresh?",
+                  body: "This deletes every team, member, challenge, wave, announcement, submission and score, and resets the clock. Your admin login, the event settings, difficulty levels and soundboard stay as they are. Export a backup first if you might need it.",
+                  danger: true,
+                  confirmLabel: "Delete and start fresh",
+                })
+              )
+                await run(() => actions.startFresh(), "Everything cleared. You're still logged in with your current password.");
             }}
           >
             Start fresh
@@ -153,7 +176,6 @@ export function AdminSettings() {
           </button>
         </div>
       </section>
-      <CredentialsModal creds={fresh} onClose={() => setFresh(null)} title="New Admin password" />
     </div>
   );
 }

@@ -1,12 +1,16 @@
 import { motion } from "framer-motion";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Emblem } from "../components/Art";
+import { playRef, preloadSound } from "../components/audio";
+import { EasterEggs } from "../components/EasterEggs";
 import { clockTime, CountUp, DoomsdayClock, Modal, ThemeChip, TypeChip } from "../components/Bits";
 import { Icon, ThemeIcon } from "../components/Icons";
 import { LatestTransmission, Page } from "../components/Layout";
 import { attemptInfo, clockPhase, NEW_BADGE_MS, teamColor } from "../core/logic";
+import { cueFor, CUE_KEYS } from "../core/sounds";
 import { themeMeta, THEMES } from "../core/themes";
-import type { ThemeId, ViewChallenge } from "../core/types";
+import type { CueKey, ThemeId, ViewChallenge } from "../core/types";
+import { PythonWorkspace } from "../python/PythonWorkspace";
 import { useBackend, useNow, useSoundSetting, useStandings } from "../hooks/store";
 import { useRun, useUi } from "../hooks/ui";
 
@@ -14,6 +18,7 @@ export function BreachesPage() {
   const { view } = useBackend();
   const standings = useStandings();
   const now = useNow(5000);
+  const phase = clockPhase(view.settings, now);
   const [filter, setFilter] = useState<ThemeId | "all">("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const me = view.me!;
@@ -40,7 +45,7 @@ export function BreachesPage() {
               <div className="text-xs uppercase tracking-[0.3em] text-steel/60">Team</div>
               <h1 className="h-display truncate text-4xl sm:text-5xl">{team.name}</h1>
               <div className="mt-1 flex flex-wrap items-baseline gap-4">
-                <span className="font-display text-5xl text-reactor">
+                <span className="select-none font-display text-5xl text-reactor" data-egg="points">
                   <CountUp value={mine?.power ?? 0} /> <span className="text-2xl text-steel/70">Points</span>
                 </span>
                 {mine && view.settings.scoreboardVisible && (
@@ -76,12 +81,18 @@ export function BreachesPage() {
         ))}
       </div>
 
-      {view.challenges.length === 0 && (
-        <div className="plate p-10 text-center">
-          <p className="font-display text-3xl text-white">No challenges open yet</p>
-          <p className="text-steel/70">Stand by. Admin will open the first wave soon.</p>
-        </div>
-      )}
+      {view.challenges.length === 0 &&
+        (phase === "idle" ? (
+          <div className="plate p-10 text-center">
+            <p className="font-display text-3xl text-white">Challenges unlock when the event starts</p>
+            <p className="text-steel/70">Nothing is shown until Admin starts the event clock. Get your team ready; this page updates on its own the moment it begins.</p>
+          </div>
+        ) : (
+          <div className="plate p-10 text-center">
+            <p className="font-display text-3xl text-white">No challenges are live yet</p>
+            <p className="text-steel/70">New challenges appear here the moment Admin posts them. This page updates on its own.</p>
+          </div>
+        ))}
 
       {singles.length > 0 && (
         <section className="mb-10">
@@ -111,6 +122,7 @@ export function BreachesPage() {
       })}
 
       <BreachModal challenge={open} onClose={() => setOpenId(null)} solved={!!open && solvedByUs.has(open.id)} />
+      <EasterEggs />
     </Page>
   );
 }
@@ -192,7 +204,7 @@ function BreachCard({ c, solved, teams, now, onOpen }: { c: ViewChallenge; solve
 }
 
 function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallenge | null; onClose: () => void; solved: boolean }) {
-  const { view, actions } = useBackend();
+  const { view, actions, backend } = useBackend();
   const { confirm, fireWrong, fireSeal, toast } = useUi();
   const { run, busy } = useRun();
   const now = useNow(1000);
@@ -200,6 +212,16 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
   const [sound, setSound] = useSoundSetting();
   const phase = clockPhase(view.settings, now);
   const nameOf = (id?: string) => view.teams.flatMap((t) => t.members).find((m) => m.id === id)?.displayName ?? "A squadmate";
+  // Load this challenge's meme sounds as soon as it opens, so they play without delay.
+  useEffect(() => {
+    if (c) for (const k of CUE_KEYS) preloadSound(backend.soundSrc(cueFor(view.soundboard, c.cues, k).sound));
+  }, [c?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Plays the sound for a moment (this challenge's own, else the Soundboard default) and returns its cue. */
+  const fire = (key: CueKey) => {
+    const cue = cueFor(backend.getView()?.soundboard ?? view.soundboard, c?.cues, key);
+    playRef(cue.sound, backend.soundSrc(cue.sound), cue.seconds);
+    return cue;
+  };
 
   if (!c) return <Modal open={false} onClose={onClose}>{null}</Modal>;
   const t = themeMeta(c.theme);
@@ -227,8 +249,12 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
     if (!r) return;
     setFlag("");
     if (r.alreadySolved) toast("info", "Your team already solved this challenge.");
-    else if (r.correct) fireSeal(r.title, r.points);
-    else fireWrong();
+    else if (r.correct) fireSeal(r.title, r.points, fire("correct").text);
+    else {
+      // Which moment is it? attemptsLeft comes from the server's count after this guess.
+      const mood: CueKey = r.attemptsLeft === 0 ? "outOfAttempts" : r.attemptsLeft === 1 ? "lastAttempt" : "wrong";
+      fireWrong(mood, fire(mood).text);
+    }
   };
 
   return (
@@ -274,9 +300,14 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
         </div>
       )}
 
+      {c.python?.enabled && <PythonWorkspace key={c.id} c={c} />}
+
       {c.hints.length > 0 && (
         <div className="mt-5">
           <h3 className="label">Hints</h3>
+          {!solved && phase !== "running" && (
+            <p className="mb-2 text-sm text-steel/70">{phase === "ended" ? "Time's up, so hints can no longer be opened." : "Hints can be opened once the event clock starts."}</p>
+          )}
           <ul className="grid gap-2">
             {c.hints.map((h, i) => (
               <li key={i} className={`rounded-md border p-3 ${h.unlocked ? "border-gold/40 bg-gold/5" : "border-white/10 bg-void/40"}`}>
@@ -293,7 +324,7 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
                     <span className="flex items-center gap-2 text-steel/80">
                       <Icon.Lock size={16} /> Hint {i + 1} is locked
                     </span>
-                    <button className="btn-ghost btn-sm" onClick={() => openHint(i)} disabled={busy || phase === "ended"}>
+                    <button className="btn-ghost btn-sm" onClick={() => openHint(i)} disabled={busy || solved || phase !== "running"}>
                       Open for {h.cost} points
                     </button>
                   </div>
@@ -307,10 +338,15 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
       <div className="mt-6 border-t border-white/10 pt-5">
         {att.limit !== null && !solved && (
           <p className={`mb-2 text-sm ${out ? "text-breach" : "text-steel/80"}`}>
-            <strong className={out ? "" : "text-white"}>
+            <strong className={out ? "" : att.left !== null && att.left <= 2 ? "text-breach" : "text-white"}>
               {att.left} of {att.limit}
             </strong>{" "}
             attempts left for your team
+          </p>
+        )}
+        {att.limit === null && !solved && (
+          <p className="mb-2 text-sm text-steel/70">
+            {att.used > 0 ? `Your team has tried ${att.used} flag${att.used === 1 ? "" : "s"} here. Unlimited attempts.` : "Unlimited attempts."}
           </p>
         )}
         {solved ? (
@@ -318,11 +354,13 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
             <Icon.Check /> Solved by your team. Nice work.
           </div>
         ) : phase === "idle" ? (
-          <Notice>Flags open when the timer starts.</Notice>
+          <Notice>
+            The flag box opens when the event clock starts. Admin starts it at kickoff; this page updates by itself.
+          </Notice>
         ) : phase === "ended" ? (
-          <Notice>Time's up.</Notice>
+          <Notice>Time's up. Flags can no longer be submitted.</Notice>
         ) : out ? (
-          <Notice danger>Out of attempts. An admin can grant more.</Notice>
+          <Notice danger>Out of attempts. Your team used all {att.limit} on this one. An admin can add more if they choose.</Notice>
         ) : (
           <>
           <p className="mb-2 text-xs text-steel/60">

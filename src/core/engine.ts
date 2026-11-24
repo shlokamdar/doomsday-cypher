@@ -1,18 +1,21 @@
 import { hashFlag, hashPassword, newId, newSalt, safeEqual, tempPassword } from "./crypto";
 import { parseSquadCsv, type RowError } from "./csv";
 import { UserError } from "./errors";
-import { attemptInfo, clockPhase, MINUTE } from "./logic";
+import { attemptInfo, clockName, clockPhase, MINUTE } from "./logic";
 import { validateBackup } from "./migrate";
 import { DATA_VERSION, demoDb, emptyDb } from "./seed";
+import { checkCue, checkCues, CUE_KEYS, defaultSoundboard, isSoundId } from "./sounds";
 import { THEME_IDS } from "./themes";
 import type {
   Challenge,
   ChallengeInput,
   ChallengeType,
   Credential,
+  CueKey,
   DB,
   NotificationLevel,
   Release,
+  SoundMeta,
   SubmitResult,
   Team,
   User,
@@ -153,6 +156,13 @@ async function buildChallenge(db: DB, raw: any, now: number, existing?: Challeng
     if (!/^(https?:\/\/|\/|files\/)/i.test(url)) throw new UserError(`File ${i + 1} link must start with https:// or /.`);
     return { name: str(f?.name, `File ${i + 1} name`, 120), url };
   });
+  const cues = checkCues(raw.cues, db.soundboard.sounds);
+  let python: Challenge["python"];
+  if (raw.python && typeof raw.python === "object" && raw.python.enabled) {
+    const starter = typeof raw.python.starter === "string" ? raw.python.starter : "";
+    if (starter.length > 20000) throw new UserError("Starter code is too long (max 20,000 characters).");
+    python = { enabled: true, starter };
+  }
   const flag = typeof raw.flag === "string" ? raw.flag.trim() : "";
   if (flag.length > 500) throw new UserError("Flag is too long.");
   let flagHash = existing?.flagHash ?? "";
@@ -182,6 +192,8 @@ async function buildChallenge(db: DB, raw: any, now: number, existing?: Challeng
     bonusAttempts: existing?.bonusAttempts ?? 0,
     hidden: existing?.hidden ?? false,
     releaseAt: existing ? existing.releaseAt : null,
+    ...(cues ? { cues } : {}),
+    ...(python ? { python } : {}),
     createdAt: existing?.createdAt ?? now,
   };
 }
@@ -218,7 +230,9 @@ export const METHODS: Record<string, MethodSpec> = {
     async fn({ db }, teamId: unknown, usernameRaw: unknown, passwordRaw: unknown) {
       const username = typeof usernameRaw === "string" ? usernameRaw.trim().toLowerCase() : "";
       const password = typeof passwordRaw === "string" ? passwordRaw : "";
-      const user = db.users.find((u) => u.username === username);
+      // Members pick their own name on the login page, which sends their id; Admin types a username.
+      const byId = teamId !== null && teamId !== undefined && typeof usernameRaw === "string" ? db.users.find((u) => u.id === usernameRaw) : undefined;
+      const user = byId ?? db.users.find((u) => u.username === username);
       const fail = () => new UserError("Wrong team, name or password.", 401);
       if (!user) {
         await hashPassword(password, newSalt()); // keep timing similar
@@ -290,7 +304,9 @@ export const METHODS: Record<string, MethodSpec> = {
       const user = actor!;
       const c = db.challenges.find((x) => x.id === challengeId);
       if (!c || !liveFor(c, now)) throw new UserError("Challenge not found.", 404);
-      if (clockPhase(db.settings, now) === "ended") throw new UserError("Time's up.");
+      const phase = clockPhase(db.settings, now);
+      if (phase === "idle") throw new UserError("Hints open when the event clock starts.");
+      if (phase === "ended") throw new UserError("Time's up.");
       const index = int(indexRaw, "Hint", 0, c.hints.length - 1);
       const existing = db.hintUnlocks.find((h) => h.teamId === user.teamId && h.challengeId === c.id && h.index === index);
       if (existing) return { already: true };
@@ -303,16 +319,25 @@ export const METHODS: Record<string, MethodSpec> = {
   clockStart: {
     auth: "admin",
     fn({ db, now }) {
+      const d = db.settings.durationMinutes;
       db.settings.startsAt = now;
-      db.settings.endsAt = now + db.settings.durationMinutes * MINUTE;
-      notify(db, now, "The Timer is ticking", `${db.settings.durationMinutes / 60} hours on the clock. Solve every challenge you can.`, "important");
+      // durationMinutes 0 = no time limit: the event runs until Admin presses "End now".
+      db.settings.endsAt = d > 0 ? now + d * MINUTE : null;
+      notify(
+        db,
+        now,
+        "The Timer is ticking",
+        d > 0 ? `The ${clockName(d)} is running. Solve every challenge you can.` : "The event has started. There's no time limit: the organisers will end it.",
+        "important",
+      );
     },
   },
   clockAddMinutes: {
     auth: "admin",
     fn({ db, now }, minutes: unknown) {
       const m = int(minutes, "Minutes", 1, 600);
-      if (db.settings.startsAt === null || db.settings.endsAt === null) throw new UserError("Start the clock first.");
+      if (db.settings.startsAt === null) throw new UserError("Start the clock first.");
+      if (db.settings.endsAt === null) throw new UserError("The event has no time limit, so there's nothing to extend.");
       db.settings.endsAt = Math.max(db.settings.endsAt, now) + m * MINUTE;
       notify(db, now, `+${m} minutes on the timer`, "The organisers added more time to the clock.");
     },
@@ -321,9 +346,19 @@ export const METHODS: Record<string, MethodSpec> = {
     auth: "admin",
     fn({ db, now }) {
       if (db.settings.startsAt === null) throw new UserError("The clock has not started.");
-      db.settings.endsAt = Math.min(db.settings.endsAt ?? now, now);
+      db.settings.endsAt = db.settings.endsAt === null ? now : Math.min(db.settings.endsAt, now);
       if (db.settings.startsAt > now) db.settings.startsAt = now;
       notify(db, now, "Time's up", "The Timer has hit zero. Flags are closed.", "important");
+    },
+  },
+  /** Turns a running timed clock into one with no time limit. */
+  clockRemoveLimit: {
+    auth: "admin",
+    fn({ db, now }) {
+      if (clockPhase(db.settings, now) !== "running") throw new UserError("The clock isn't running.");
+      db.settings.endsAt = null;
+      db.settings.durationMinutes = 0;
+      notify(db, now, "No time limit", "The organisers removed the time limit. The event runs until they end it.");
     },
   },
   clockReset: {
@@ -424,6 +459,34 @@ export const METHODS: Record<string, MethodSpec> = {
         c.hidden = false;
       }
       notify(db, now, `Wave ${wave.number} is live`, `${cs.length} new challenges have opened across the multiverse.`, "important");
+    },
+  },
+  /** Puts exactly five single challenges into a new wave. Each keeps its own release status. */
+  groupIntoWave: {
+    auth: "admin",
+    fn({ db, now }, idsRaw: unknown) {
+      if (!Array.isArray(idsRaw)) throw new UserError("Pick the challenges for the wave.");
+      const ids = [...new Set(idsRaw)];
+      if (ids.length !== 5) throw new UserError(`Pick exactly 5 challenges for a wave. You picked ${ids.length}.`);
+      const picked = ids.map((id) => db.challenges.find((c) => c.id === id));
+      if (picked.some((c) => !c)) throw new UserError("One of those challenges no longer exists.", 404);
+      const inWave = picked.find((c) => c!.waveId);
+      if (inWave) throw new UserError(`"${inWave.title}" is already in a wave. Split that wave first.`);
+      const number = db.waves.reduce((m, w) => Math.max(m, w.number), 0) + 1;
+      const wave = { id: newId("w-"), number, createdAt: now };
+      db.waves.push(wave);
+      for (const c of picked) c!.waveId = wave.id;
+      return { waveId: wave.id, number };
+    },
+  },
+  /** Turns a wave's challenges back into single challenges and removes the wave. */
+  splitWave: {
+    auth: "admin",
+    fn({ db }, waveId: unknown) {
+      const wave = db.waves.find((w) => w.id === waveId);
+      if (!wave) throw new UserError("That wave no longer exists.", 404);
+      for (const c of db.challenges) if (c.waveId === wave.id) c.waveId = null;
+      db.waves = db.waves.filter((w) => w.id !== wave.id);
     },
   },
   deleteChallenge: {
@@ -542,7 +605,11 @@ export const METHODS: Record<string, MethodSpec> = {
       const s = db.settings;
       if (patch.eventName !== undefined) s.eventName = str(patch.eventName, "Event name", 80);
       if (patch.tagline !== undefined) s.tagline = str(patch.tagline, "Tagline", 160, true);
-      if (patch.durationMinutes !== undefined) s.durationMinutes = int(patch.durationMinutes, "Duration", 1, 1440);
+      if (patch.durationMinutes !== undefined) {
+        const d = int(patch.durationMinutes, "Duration", 0, 1440);
+        if (d > 0 && d < 10) throw new UserError("Duration must be at least 10 minutes, or 0 for no time limit.");
+        s.durationMinutes = d;
+      }
       if (patch.teamSize !== undefined) s.teamSize = int(patch.teamSize, "Team size", 1, 10);
       if (patch.forcePasswordChange !== undefined) s.forcePasswordChange = bool(patch.forcePasswordChange, "Force password change");
       if (patch.submissionsPerMinute !== undefined) s.submissionsPerMinute = int(patch.submissionsPerMinute, "Submissions per minute", 1, 1000);
@@ -582,6 +649,51 @@ export const METHODS: Record<string, MethodSpec> = {
     },
   },
 
+  /* ---- Admin: soundboard ---- */
+  updateCue: {
+    auth: "admin",
+    fn({ db }, key: unknown, cue: unknown) {
+      if (!CUE_KEYS.includes(key as CueKey)) throw new UserError("Unknown moment.");
+      db.soundboard.cues[key as CueKey] = checkCue(cue, db.soundboard.sounds);
+    },
+  },
+  /**
+   * Records an uploaded sound's details. The audio itself is stored by the backend first
+   * (this browser's storage, or the server's database), never inside the event data.
+   */
+  registerSound: {
+    auth: "admin",
+    fn({ db }, metaRaw: unknown) {
+      const m = metaRaw as SoundMeta;
+      if (!m || !isSoundId(m.id) || typeof m.mime !== "string" || !/^audio\//.test(m.mime)) throw new UserError("Bad sound.");
+      if (db.soundboard.sounds.some((x) => x.id === m.id)) return { id: m.id };
+      if (db.soundboard.sounds.length >= 40) throw new UserError("The soundboard is full (40 sounds). Delete one first.");
+      db.soundboard.sounds.push({
+        id: m.id,
+        name: str(m.name, "Sound name", 60),
+        bytes: int(m.bytes, "Size", 0, 10_000_000),
+        mime: m.mime,
+        addedAt: time(m.addedAt, "Added"),
+      });
+      return { id: m.id };
+    },
+  },
+  deleteSound: {
+    auth: "admin",
+    fn({ db }, id: unknown) {
+      if (!isSoundId(id)) throw new UserError("Sound not found.", 404);
+      const ref = `upload:${id}`;
+      const defaults = defaultSoundboard().cues;
+      db.soundboard.sounds = db.soundboard.sounds.filter((s) => s.id !== id);
+      for (const k of CUE_KEYS) if (db.soundboard.cues[k].sound === ref) db.soundboard.cues[k] = defaults[k];
+      for (const c of db.challenges) {
+        if (!c.cues) continue;
+        for (const k of CUE_KEYS) if (c.cues[k]?.sound === ref) delete c.cues[k];
+        if (!Object.keys(c.cues).length) delete c.cues;
+      }
+    },
+  },
+
   /* ---- Admin: data ---- */
   exportBackup: {
     auth: "admin",
@@ -597,27 +709,22 @@ export const METHODS: Record<string, MethodSpec> = {
       replaceDb(db, validateBackup(json));
     },
   },
+  /**
+   * Clears everything that happened in the event (teams, members, challenges, waves, submissions,
+   * hints, announcements, the clock) but keeps the admin who pressed it with the same password,
+   * the event settings, the categories and the soundboard.
+   */
   startFresh: {
     auth: "admin",
-    async fn({ db, now }) {
-      const password = tempPassword();
+    fn({ db, actor }) {
+      const me = actor!;
       const next = emptyDb();
-      const salt = newSalt();
-      next.users.push({
-        id: newId("u-"),
-        username: "admin",
-        displayName: "Admin",
-        role: "admin",
-        teamId: null,
-        passwordSalt: salt,
-        passwordHash: await hashPassword(password, salt),
-        mustChangePassword: false,
-        createdAt: now,
-      });
+      next.users.push({ ...structuredClone(me), mustChangePassword: false });
+      next.settings = { ...db.settings, startsAt: null, endsAt: null, freezeAt: null };
+      next.challengeTypes = structuredClone(db.challengeTypes);
+      next.soundboard = structuredClone(db.soundboard);
       replaceDb(db, next);
-      const admin = db.users[0];
-      const credential: Credential = { userId: admin.id, teamName: "Admin", displayName: "Admin", username: "admin", password };
-      return { credential, __session: admin.id };
+      return { __session: me.id };
     },
   },
   loadDemo: {

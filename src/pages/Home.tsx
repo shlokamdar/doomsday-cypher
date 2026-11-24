@@ -5,7 +5,7 @@ import { Emblem } from "../components/Art";
 import { CountUp, DoomsdayClock } from "../components/Bits";
 import { GlitchTitle, Reveal, Ticker, TiltCard, Typewriter } from "../components/Cinematic";
 import { ThemeIcon } from "../components/Icons";
-import { clockPhase, remainingMs, teamColor } from "../core/logic";
+import { clockPhase, isUnlimited, remainingMs, teamColor } from "../core/logic";
 import { THEMES } from "../core/themes";
 import type { ThemeId } from "../core/types";
 import { useBackend, useNow, useStandings } from "../hooks/store";
@@ -68,7 +68,9 @@ function WorldsCounter() {
   const s = view.settings;
   const phase = clockPhase(s, now);
   const total = 1000;
-  const left = phase === "idle" ? total : phase === "ended" ? 0 : Math.max(1, Math.ceil((total * remainingMs(s, now)) / (s.durationMinutes * 60_000)));
+  const span = s.startsAt !== null && s.endsAt !== null ? s.endsAt - s.startsAt : s.durationMinutes * 60_000;
+  // With no time limit the worlds hold until Admin ends the event.
+  const left = phase === "idle" || isUnlimited(s) ? (phase === "ended" ? 0 : total) : phase === "ended" ? 0 : Math.max(1, Math.ceil((total * remainingMs(s, now)) / span));
   return (
     <div className="text-center">
       <div className="text-[10px] font-semibold uppercase tracking-[0.35em] text-steel/60">Worlds still standing</div>
@@ -299,7 +301,11 @@ export function HomePage() {
                     Flags look like <code className="font-mono text-reactor">IAMDOOM{"{...}"}</code>. Paste the whole thing, braces included.
                   </>,
                   <>Teams of up to {s.teamSize}. Every member logs in with their own account.</>,
-                  <>Flags open when the timer starts and close when it hits zero ({s.durationMinutes} minutes).</>,
+                  s.durationMinutes ? (
+                    <>Challenges, hints and flags open when the timer starts and close when it hits zero ({s.durationMinutes} minutes).</>
+                  ) : (
+                    <>Challenges, hints and flags open when the timer starts. There's no time limit: Admin ends the event.</>
+                  ),
                   <>Ties go to the team that reached that score first.</>,
                   <>Hints cost points once, for the whole team. Some challenges have limited attempts.</>,
                   <>Max {s.submissionsPerMinute} flag attempts per minute per challenge for each team.</>,

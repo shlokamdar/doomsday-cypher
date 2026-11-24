@@ -16,6 +16,10 @@ Admin, Announcements and the Timer. Flags look like **`IAMDOOM{...}`**.
 
 ## Features
 
+This site is the warm-up for **EcoCypher** and works the same way, so admins and players only learn
+one system: waves of 5 or single challenges, the event clock (or no time limit), hints that cost
+points, shared attempt limits, the Soundboard, the Python workspace, and the same admin pages.
+
 **Players**
 - Log in by picking your team, tapping your name and entering your password. Forcing people to replace a temporary
   password on first login is a setting (Admin → Settings), off by default.
@@ -23,23 +27,41 @@ Admin, Announcements and the Timer. Flags look like **`IAMDOOM{...}`**.
   latest transmission; category filters; single breaches then incursion waves ("x of 5 sealed").
 - Breach window: briefing, files, hints with a confirm step (cost charged once, visible to the whole
   squad, shows who opened it), shared attempt limits, flag box that opens/closes with the clock, sound toggle.
-- Wrong flag: full-screen "FAAAAAA!!!!!!!!" with The Sovereign face-palming, once per guess.
-  Correct flag: "BREACH SEALED" stamp, collapsing portal, shards and a synth power-up chord.
+- Challenges stay hidden (no titles at all) until Admin starts the event clock; the page then fills
+  in by itself. Hints and the flag box say they open when the clock starts.
+- Wrong flag: full-screen "FAAAAAA!!!!!!!!" with The Sovereign face-palming, once per guess. The
+  guess that leaves one attempt shows "ABHI MAZA AAYEGA!", the one that uses the last attempt
+  "GAME OVER". Correct flag: "BREACH SEALED" stamp, collapsing portal and a power-up chord.
+  Sounds and pop-up text come from the Soundboard (and can be changed per challenge).
+- Python workspace (optional per challenge): Python 3 runs in the player's browser (Pyodide,
+  self-hosted in `public/pyodide/`) with numpy, pandas and the standard library. The challenge's
+  own `files/…` links are ready to open by name. 30-second limit per run, Stop button. Code never
+  reaches the server.
+- Easter eggs on the challenges page (no points): the Konami code or the peeking portal starts a
+  multiverse frenzy; clicking your team's points 3 times turns on Australia mode.
 - War Table: portal race, step chart for the top 5, rank-change arrows, new-leader confetti,
   expandable member Power bars, hint spending in red, freeze/hidden states.
 - Transmissions with unread badge and toasts.
 
 **Command**
-- Dashboard: clock controls (start, +10 min, end, reset), KPIs, solves over time, solves by category,
-  live submission feed, top squads.
+- Dashboard: clock controls (start, +10 min, remove time limit, end, reset), KPIs, solves over time,
+  solves by category, live submission feed, top teams, up next, challenge health.
+- Clock length or **no time limit** (Settings): with no limit the clock counts up until End now.
 - Post breaches: incursion wave (exactly 5, auto-numbered) or single; post now / schedule / draft;
   CSV/JSON import with per-row errors and review before posting; downloadable template.
 - Breach library: release now, schedule, unpublish, edit (flag kept if left empty), delete, +3 attempts
-  for every squad, per-breach solves/attempts/hints, "Release this wave now".
+  for every squad, per-breach solves/attempts/hints, "Release this wave now", tick 5 single
+  challenges to **make a wave**, **split a wave** back into singles.
+- Soundboard: pick the sound, pop-up text and length for each moment (wrong flag, last attempt
+  left, out of attempts, correct flag), preview them, upload your own short clips (≤ 600 KB).
+  Uploaded audio is stored outside the event data and served from `/api/sound`.
 - Squads & members: create, CSV import, credentials shown once (copy / print), rename, add member,
   reset password, remove member, delete squad.
-- Transmissions, filterable submission log (wrong guesses included), settings (event, 4 editable
-  categories, scoreboard show/hide/freeze, backup export/import, start fresh, load demo).
+- Transmissions, filterable submission log (wrong guesses included; wrong answers typed by more
+  than one team are marked "Shared answer"), settings (event, 4 editable difficulty levels,
+  scoreboard show/hide/freeze, backup export/import, start fresh, load demo).
+- Start fresh clears teams, challenges, submissions and announcements but keeps your admin login
+  (same password), the settings, difficulty levels and the soundboard.
 
 ## Demo vs live
 
@@ -70,13 +92,15 @@ Live event setup: see **[docs/VERCEL.md](docs/VERCEL.md)**.
 - Passwords use PBKDF2 too. New members get temporary passwords shown to Command once.
 - Sessions are HMAC-SHA256 tokens `userId.expiry.passwordHashPrefix.sig`, valid 14 h. A password
   change or reset invalidates old tokens.
-- Each viewer gets a **filtered view**. Players never receive flag or password hashes, draft / hidden /
+- Each viewer gets a **filtered view**. Usernames are sent only to Admin and to the member
+  themselves (members log in by picking their name). Players never receive flag or password hashes, draft / hidden /
   scheduled breaches, hint text their squad hasn't unlocked, other squads' wrong guesses, or other
   squads' activity after a freeze (or at all while the War Table is hidden). Hashes are scrubbed from
   every RPC result except Command's backup export.
 - RPC methods are whitelisted; `loadDemo` and `startFresh` are Command only.
 - Rate limit: `submissionsPerMinute` guesses per squad per breach (default 10).
-- Build-time CSP: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'`.
+- Build-time CSP: `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' data: blob:; object-src 'none'`
+  (`wasm-unsafe-eval` lets the in-browser Python start; it does not allow `eval()` of JavaScript).
   Fonts are self-hosted with @fontsource. No source maps. API responses send `Cache-Control: no-store`
   and `X-Content-Type-Options: nosniff`.
 - An AI-agent notice (hidden element, HTML comment, `ai-instructions` meta, `llms.txt`, `robots.txt`)
@@ -138,8 +162,8 @@ node scripts/e2e.mjs   # two-browser end-to-end check (needs Chrome + Edge, buil
 ```
 
 `scripts/gen-demo-hashes.mjs` regenerates the demo hashes with fresh random flags, written only to
-`.secrets/demo-flags.txt` (git-ignored). The wrong-flag sound goes in `public/sounds/faaah.mp3`;
-without it the site uses a synthesised fallback.
+`.secrets/demo-flags.txt` (git-ignored). Built-in sounds live in `public/sounds/` (faaah,
+abhi-maza, game-over); if one can't play, the site falls back to a synthesised sound.
 
 Data model changes: bump `DATA_VERSION` in `src/core/seed.ts` and add a step to `src/core/migrate.ts`.
 

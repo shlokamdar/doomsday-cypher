@@ -1,6 +1,7 @@
 import { UserError } from "./errors";
 import { defaultHintCost } from "./logic";
 import { DATA_VERSION, defaultSettings } from "./seed";
+import { CUE_KEYS, defaultSoundboard } from "./sounds";
 import { DEFAULT_CHALLENGE_TYPES, THEME_IDS } from "./themes";
 import type { DB } from "./types";
 
@@ -11,6 +12,7 @@ import type { DB } from "./types";
  *
  * v1 (previous release): challenges had `released: boolean`, hints were plain strings with no
  * cost, there were no attempt limits / hidden flag, and no hint unlocks or scoreboard freeze.
+ * v2: no soundboard (meme sounds per moment), no per-challenge cues or Python workspace.
  */
 export function migrate(input: any): DB {
   if (!input || typeof input !== "object") throw new UserError("Not a DOOMSDAY CYPHER database.");
@@ -38,6 +40,11 @@ export function migrate(input: any): DB {
     db.dataVersion = 2;
   }
 
+  if (from < 3) {
+    db.soundboard = defaultSoundboard();
+    db.dataVersion = 3;
+  }
+
   // Fill defaults for anything missing (robust against partial backups).
   db.users = db.users ?? [];
   db.teams = db.teams ?? [];
@@ -48,6 +55,11 @@ export function migrate(input: any): DB {
   db.notifications = db.notifications ?? [];
   db.challengeTypes = db.challengeTypes?.length ? db.challengeTypes : DEFAULT_CHALLENGE_TYPES.map((t) => ({ ...t }));
   db.settings = { ...defaultSettings(), ...(db.settings ?? {}) };
+  const board = defaultSoundboard();
+  db.soundboard = db.soundboard ?? board;
+  db.soundboard.sounds = Array.isArray(db.soundboard.sounds) ? db.soundboard.sounds : [];
+  db.soundboard.cues = { ...board.cues, ...(db.soundboard.cues ?? {}) };
+  for (const k of CUE_KEYS) db.soundboard.cues[k] = db.soundboard.cues[k] ?? board.cues[k];
   for (const c of db.challenges) {
     if (c.theme === "void") c.theme = "archive";
     if (c.theme === "chronos") c.theme = "machine";

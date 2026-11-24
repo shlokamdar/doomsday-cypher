@@ -7,10 +7,15 @@ export interface DbStore {
   read(): Promise<{ db: string | null; meta: string | null }>;
   /** Writes db+meta only if the stored version still equals `expectedVersion`. */
   cas(expectedVersion: string, db: string, meta: string): Promise<boolean>;
+  /** Large values kept outside the DB (uploaded sounds), so polling never downloads them. */
+  getBlob(key: string): Promise<string | null>;
+  putBlob(key: string, value: string): Promise<void>;
+  delBlob(key: string): Promise<void>;
 }
 
 export const DB_KEY = "doomsday:db";
 export const META_KEY = "doomsday:meta";
+export const soundKey = (id: string) => `doomsday:sound:${id}`;
 
 export function parseMeta(meta: string | null): { version: string; times: number[] } {
   if (!meta) return { version: "0", times: [] };
@@ -53,6 +58,19 @@ export class MemoryStore implements DbStore {
     this.meta = meta;
     this.writes++;
     return true;
+  }
+  blobs = new Map<string, string>();
+  async getBlob(key: string) {
+    await tick();
+    return this.blobs.get(key) ?? null;
+  }
+  async putBlob(key: string, value: string) {
+    await tick();
+    this.blobs.set(key, value);
+  }
+  async delBlob(key: string) {
+    await tick();
+    this.blobs.delete(key);
   }
 }
 
@@ -117,6 +135,16 @@ export class UpstashStore implements DbStore {
   async cas(expected: string, db: string, meta: string) {
     const r = await this.cmd(["EVAL", CAS_SCRIPT, 2, DB_KEY, META_KEY, expected, db, meta]);
     return Number(r) === 1;
+  }
+
+  async getBlob(key: string) {
+    return (await this.cmd(["GET", key])) as string | null;
+  }
+  async putBlob(key: string, value: string) {
+    await this.cmd(["SET", key, value]);
+  }
+  async delBlob(key: string) {
+    await this.cmd(["DEL", key]);
   }
 }
 

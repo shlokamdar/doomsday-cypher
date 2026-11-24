@@ -5,6 +5,7 @@ import { Dashboard } from "./Dashboard";
 import { Library } from "./Library";
 import { PostBreaches } from "./PostBreaches";
 import { AdminSettings } from "./Settings";
+import { Soundboard } from "./Soundboard";
 import { Teams } from "./Squads";
 import { Submissions } from "./Submissions";
 import { AdminTransmissions } from "./Transmissions";
@@ -15,6 +16,7 @@ const NAV = [
   { to: "/admin/library", label: "Challenge library", icon: Icon.Library },
   { to: "/admin/teams", label: "Teams & members", icon: Icon.Users },
   { to: "/admin/announcements", label: "Announcements", icon: Icon.Bell },
+  { to: "/admin/soundboard", label: "Soundboard", icon: Icon.Sound },
   { to: "/admin/submissions", label: "Submissions", icon: Icon.List },
   { to: "/admin/settings", label: "Settings", icon: Icon.Gear },
 ];
@@ -54,6 +56,7 @@ export default function CommandApp() {
           <Route path="library" element={<Library />} />
           <Route path="teams" element={<Teams />} />
           <Route path="announcements" element={<AdminTransmissions />} />
+          <Route path="soundboard" element={<Soundboard />} />
           <Route path="submissions" element={<Submissions />} />
           <Route path="settings" element={<AdminSettings />} />
         </Routes>

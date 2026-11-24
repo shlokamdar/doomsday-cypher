@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { clockPhase, formatClock, remainingMs } from "../core/logic";
+import { clockPhase, elapsedMs, formatClock, isUnlimited, remainingMs } from "../core/logic";
 import { themeMeta } from "../core/themes";
 import type { ThemeId } from "../core/types";
 import { useBackend, useNow, usePrefersReducedMotion } from "../hooks/store";
@@ -13,15 +13,30 @@ export function DoomsdayClock({ size = "lg", className = "" }: { size?: "sm" | "
   const now = useNow(500);
   const s = view.settings;
   const phase = clockPhase(s, now);
+  // No time limit: once started the clock counts up, and never turns red.
+  const unlimited = isUnlimited(s);
   const ms = remainingMs(s, now);
-  const label = phase === "idle" ? "Awaiting launch" : phase === "ended" ? "Time's up" : ms < 10 * 60_000 ? "Final minutes" : "Time left";
-  const color = phase === "ended" ? "text-breach" : phase === "idle" ? "text-steel" : ms < 10 * 60_000 ? "text-breach" : "text-gold";
+  const low = !unlimited && phase === "running" && ms < 10 * 60_000;
+  const text = unlimited ? (phase === "idle" ? "∞" : formatClock(elapsedMs(s, now))) : formatClock(ms);
+  const label =
+    phase === "idle"
+      ? unlimited
+        ? "No time limit"
+        : "Awaiting launch"
+      : phase === "ended"
+        ? "Time's up"
+        : unlimited
+          ? "Elapsed · no time limit"
+          : low
+            ? "Final minutes"
+            : "Time left";
+  const color = phase === "ended" ? "text-breach" : phase === "idle" ? "text-steel" : low ? "text-breach" : "text-gold";
   const sizes = { sm: "text-2xl", md: "text-4xl", lg: "text-5xl sm:text-6xl", xl: "text-6xl sm:text-8xl" };
   return (
-    <div className={`text-center ${className}`} role="timer" aria-label={`${label}: ${formatClock(ms)} remaining`}>
+    <div className={`text-center ${className}`} role="timer" aria-label={`${label}: ${text}`}>
       <div className="text-[10px] font-semibold uppercase tracking-[0.35em] text-steel/60">{label}</div>
       <div className={`font-display leading-none tabular-nums ${sizes[size]} ${color}`} style={{ textShadow: "0 0 24px currentColor" }}>
-        {formatClock(ms)}
+        {text}
       </div>
     </div>
   );

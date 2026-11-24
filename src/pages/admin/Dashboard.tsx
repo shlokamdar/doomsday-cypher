@@ -2,7 +2,8 @@ import { Emblem } from "../../components/Art";
 import { clockTime, DoomsdayClock, timeAgo } from "../../components/Bits";
 import { Columns, HBars } from "../../components/Charts";
 import { Icon } from "../../components/Icons";
-import { clockPhase, MINUTE, teamColor } from "../../core/logic";
+import { Link } from "react-router-dom";
+import { clockName, clockPhase, isUnlimited, MINUTE, teamColor } from "../../core/logic";
 import { THEMES } from "../../core/themes";
 import { useBackend, useNow, useStandings } from "../../hooks/store";
 import { useRun, useUi } from "../../hooks/ui";
@@ -16,12 +17,15 @@ export function Dashboard() {
   const standings = useStandings();
   const s = view.settings;
   const phase = clockPhase(s, now);
+  const unlimited = isUnlimited(s);
   const players = (view.users ?? []).filter((u) => u.role === "player");
   const subs = view.submissions;
   const correct = subs.filter((x) => x.correct);
   const activeTeams = new Set(subs.filter((x) => x.at > now - 15 * MINUTE).map((x) => x.teamId).concat(view.hintUnlocks.filter((h) => h.at > now - 15 * MINUTE).map((h) => h.teamId))).size;
   const accuracy = subs.length ? Math.round((correct.length / subs.length) * 100) : 0;
   const count = (st: string) => view.challenges.filter((c) => c.status === st).length;
+  const live = view.challenges.filter((c) => c.status === "live").sort((a, b) => a.points - b.points);
+  const scheduled = view.challenges.filter((c) => c.status === "scheduled").sort((a, b) => (a.releaseAt ?? 0) - (b.releaseAt ?? 0));
   const userName = (id: string) => view.users?.find((u) => u.id === id)?.displayName ?? "Former member";
   const teamName = (id: string) => view.teams.find((t) => t.id === id)?.name ?? "Deleted team";
   const chTitle = (id: string) => view.challenges.find((c) => c.id === id)?.title ?? "Deleted challenge";
@@ -52,18 +56,51 @@ export function Dashboard() {
       <section className="plate mb-5 flex flex-wrap items-center justify-between gap-5 p-5">
         <DoomsdayClock size="xl" />
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" disabled={busy} onClick={() => act(`Start ${s.durationMinutes / 60}-hour clock`, phase === "running" ? "The clock is already running. This restarts it from now." : `Flags open now and close in ${s.durationMinutes} minutes.`, () => actions.clockStart(), "Timer started.")}>
-            Start {s.durationMinutes / 60}-hour clock
+          <button
+            className="btn-primary"
+            disabled={busy}
+            onClick={() =>
+              act(
+                `Start the ${clockName(s.durationMinutes)}`,
+                phase === "running"
+                  ? "The clock is already running. This restarts it from now."
+                  : s.durationMinutes
+                    ? `Challenges, hints and flags open now and close in ${s.durationMinutes} minutes.`
+                    : "Challenges, hints and flags open now. There's no time limit: the event runs until you press End now.",
+                () => actions.clockStart(),
+                "The clock is running.",
+              )
+            }
+          >
+            Start the {clockName(s.durationMinutes)}
           </button>
-          <button className="btn-gold" disabled={busy || s.startsAt === null} onClick={() => act("+10 minutes", "Add 10 minutes to the timer for every team?", () => actions.clockAddMinutes(10), "+10 minutes added.")}>
-            +10 minutes
-          </button>
+          {!unlimited && (
+            <button className="btn-gold" disabled={busy || s.startsAt === null} onClick={() => act("+10 minutes", "Add 10 minutes to the timer for every team?", () => actions.clockAddMinutes(10), "+10 minutes added.")}>
+              +10 minutes
+            </button>
+          )}
+          {!unlimited && phase === "running" && (
+            <button className="btn-ghost" disabled={busy} onClick={() => act("Remove time limit", "Remove the time limit? The event keeps running until you press End now.", () => actions.clockRemoveLimit(), "Time limit removed.")}>
+              Remove time limit
+            </button>
+          )}
           <button className="btn-danger" disabled={busy || phase !== "running"} onClick={() => act("End now", "Stop the clock now? Flags close immediately for everyone.", () => actions.clockEnd(), "Clock ended.", true)}>
             End now
           </button>
-          <button className="btn-ghost" disabled={busy} onClick={() => act("Reset clock", "Clear the start and end times? The clock goes back to waiting.", () => actions.clockReset(), "Clock reset.", true)}>
+          <button className="btn-ghost" disabled={busy} onClick={() => act("Reset clock", "Clear the start and end times? The clock goes back to waiting and players stop seeing challenges.", () => actions.clockReset(), "Clock reset.", true)}>
             Reset
           </button>
+        </div>
+        <div className="flex w-full flex-wrap gap-2 border-t border-white/5 pt-4">
+          <Link to="post" className="btn-gold btn-sm">
+            Post a wave of 5
+          </Link>
+          <Link to="post?mode=single" className="btn-ghost btn-sm">
+            Post a single challenge
+          </Link>
+          <Link to="announcements" className="btn-ghost btn-sm">
+            Send an announcement
+          </Link>
         </div>
       </section>
 
@@ -112,7 +149,71 @@ export function Dashboard() {
             ))}
           </ol>
         </section>
+        <section className="plate p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="h-display text-2xl">Up next</h2>
+            <Link className="text-sm font-semibold text-reactor" to="library">
+              Library
+            </Link>
+          </div>
+          {scheduled.length === 0 ? (
+            <p className="text-sm text-steel/60">Nothing scheduled. Drafts: {count("draft")}.</p>
+          ) : (
+            <ul className="grid gap-2 text-sm">
+              {scheduled.slice(0, 6).map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate text-white">{c.title}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-steel/60">{clockTime(c.releaseAt!)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
+
+      <section className="plate mt-5 overflow-x-auto p-5">
+        <h2 className="h-display mb-3 text-2xl">Challenge health</h2>
+        {live.length === 0 ? (
+          <p className="text-sm text-steel/60">No live challenges yet.</p>
+        ) : (
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-steel/60">
+                <th className="py-2 font-medium">Challenge</th>
+                <th className="font-medium">Points</th>
+                <th className="font-medium">Solved by</th>
+                <th className="font-medium">Attempts</th>
+                <th className="font-medium">First solve</th>
+              </tr>
+            </thead>
+            <tbody>
+              {live.map((c) => {
+                const sv = correct.filter((x) => x.challengeId === c.id).sort((a, b) => a.at - b.at);
+                const teams = new Set(sv.map((x) => x.teamId)).size;
+                const first = sv[0];
+                return (
+                  <tr key={c.id} className="border-b border-white/5 last:border-0">
+                    <td className="py-2.5 font-medium text-white">{c.title}</td>
+                    <td className="tabular-nums text-gold">{c.points}</td>
+                    <td>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-1.5 w-20 overflow-hidden rounded-full bg-white/10">
+                          <span className="block h-full bg-reactor" style={{ width: `${view.teams.length ? (teams / view.teams.length) * 100 : 0}%` }} />
+                        </span>
+                        <span className="tabular-nums">
+                          {teams}/{view.teams.length}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="tabular-nums">{subs.filter((x) => x.challengeId === c.id).length}</td>
+                    <td className="text-steel/70">{first ? `${teamName(first.teamId)} at ${clockTime(first.at)}` : "Not yet"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }

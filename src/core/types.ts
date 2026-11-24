@@ -1,6 +1,6 @@
 export type Role = "player" | "admin";
 export type ThemeId = "reality" | "signal" | "machine" | "archive";
-export type ChallengeStatus = "draft" | "scheduled" | "live" | "hidden";
+export type ChallengeStatus = "draft" | "scheduled" | "live" | "hidden" | "archived";
 export type NotificationLevel = "info" | "important";
 
 /** The moments that can play a meme sound and pop-up. */
@@ -95,6 +95,8 @@ export interface Challenge {
   hidden: boolean;
   /** null = draft, future = scheduled, past = live */
   releaseAt: number | null;
+  /** Set when Admin archives the challenge: out of play and off the scoreboard, but kept. */
+  archivedAt?: number | null;
   /** Meme sound/pop-up overrides for this challenge. Missing keys use the Soundboard defaults. */
   cues?: ChallengeCues;
   python?: PythonWorkspace;
@@ -201,6 +203,7 @@ export interface ViewChallenge {
   bonusAttempts: number;
   hidden: boolean;
   releaseAt: number | null;
+  archivedAt?: number | null;
   createdAt: number;
   status: ChallengeStatus;
   cues?: ChallengeCues;

@@ -61,6 +61,7 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
         createdAt: c.createdAt,
         status,
       };
+      if (c.archivedAt) vc.archivedAt = c.archivedAt;
       if (c.cues) vc.cues = structuredClone(c.cues);
       if (c.python) vc.python = { ...c.python };
       if (isAdmin) vc.hasFlag = !!c.flagHash;
@@ -74,11 +75,13 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
   for (const sub of db.submissions) {
     if (!sub.correct) continue;
     const c = challengeById.get(sub.challengeId);
-    if (!c) continue;
+    if (!c || c.archivedAt) continue; // archived challenges no longer count
     if (!canSeeTeamEvent(sub.teamId, sub.at)) continue;
     solves.push({ teamId: sub.teamId, userId: sub.userId, challengeId: sub.challengeId, at: sub.at, points: c.points });
   }
-  const hintUnlocks = db.hintUnlocks.filter((h) => canSeeTeamEvent(h.teamId, h.at)).map((h) => ({ ...h }));
+  const hintUnlocks = db.hintUnlocks
+    .filter((h) => !challengeById.get(h.challengeId)?.archivedAt && canSeeTeamEvent(h.teamId, h.at))
+    .map((h) => ({ ...h }));
 
   let submissions: ViewSubmission[] = [];
   if (isAdmin) submissions = db.submissions.map((x) => ({ ...x }));

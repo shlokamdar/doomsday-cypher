@@ -480,3 +480,46 @@ describe("EcoCypher parity", () => {
     expect(m.soundboard.cues.lastAttempt.sound).toBe("builtin:abhi-maza");
   });
 });
+
+describe("archive", () => {
+  it("takes a challenge out of play and off the scoreboard, and restore brings it back", async () => {
+    const w = await startedEvent();
+    const flag = randomFlag();
+    const { id } = await w.admin.actions.postSingle(input({ flag, points: 300, title: "Old one" }), { mode: "now" });
+    const { players } = await joinSquad(w, w.admin);
+    await players[0].actions.submitFlag(id, flag);
+    const power = async () => {
+      await w.admin.refresh();
+      const v = w.admin.getView()!;
+      return computeStandings(v.teams, v.solves, v.hintUnlocks).find((s) => s.name === "Alpha")!.power;
+    };
+    expect(await power()).toBe(300);
+
+    await w.admin.actions.archiveChallenge(id);
+    expect(w.admin.getView()!.challenges.find((c) => c.id === id)!.status).toBe("archived");
+    expect(await power()).toBe(0);
+    await players[1].refresh();
+    expect(players[1].getView()!.challenges.find((c) => c.id === id)).toBeUndefined();
+    await expect(players[1].actions.submitFlag(id, flag)).rejects.toThrow(/not found/);
+    await expect(w.admin.actions.releaseNow(id)).rejects.toThrow(/archived/);
+    // data is kept
+    expect(w.admin.getView()!.submissions.some((s) => s.challengeId === id && s.correct)).toBe(true);
+
+    await w.admin.actions.restoreChallenge(id);
+    expect(w.admin.getView()!.challenges.find((c) => c.id === id)!.status).toBe("live");
+    expect(await power()).toBe(300);
+  });
+
+  it("players cannot archive or restore", async () => {
+    const w = await startedEvent();
+    const { id } = await w.admin.actions.postSingle(input(), { mode: "now" });
+    const { players } = await joinSquad(w, w.admin);
+    await expect(players[0].actions.archiveChallenge(id)).rejects.toThrow(/Admin only/);
+    await expect(players[0].actions.restoreChallenge(id)).rejects.toThrow(/Admin only/);
+  });
+
+  it("older data without archivedAt migrates to not archived", () => {
+    const db = migrate({ dataVersion: 1, users: [], challenges: [{ id: "c1", theme: "signal", hints: [], points: 10, released: true, createdAt: 1 }] });
+    expect(db.challenges[0].archivedAt).toBeNull();
+  });
+});

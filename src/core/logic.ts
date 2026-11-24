@@ -11,7 +11,8 @@ import type {
 export const MINUTE = 60_000;
 export const NEW_BADGE_MS = 15 * MINUTE;
 
-export function challengeStatus(c: { hidden: boolean; releaseAt: number | null }, now: number): ChallengeStatus {
+export function challengeStatus(c: { hidden: boolean; releaseAt: number | null; archivedAt?: number | null }, now: number): ChallengeStatus {
+  if (c.archivedAt) return "archived";
   if (c.releaseAt === null) return "draft";
   if (c.hidden) return "hidden";
   if (c.releaseAt > now) return "scheduled";

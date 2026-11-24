@@ -187,6 +187,12 @@ export const Icon = {
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
     </svg>
   ),
+  Archive: (p: P) => (
+    <svg {...base(p.size ?? 18, p)}>
+      <rect x="3" y="4" width="18" height="5" rx="1" />
+      <path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" />
+    </svg>
+  ),
   Info: (p: P) => (
     <svg {...base(p.size ?? 16, p)}>
       <circle cx="12" cy="12" r="9" />

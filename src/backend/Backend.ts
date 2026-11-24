@@ -35,6 +35,8 @@ export interface Actions {
   setHidden(id: string, hidden: boolean): Promise<unknown>;
   releaseWave(waveId: string): Promise<unknown>;
   deleteChallenge(id: string): Promise<unknown>;
+  archiveChallenge(id: string): Promise<unknown>;
+  restoreChallenge(id: string): Promise<unknown>;
   grantAttempts(id: string, n?: number): Promise<unknown>;
   groupIntoWave(ids: string[]): Promise<{ waveId: string; number: number }>;
   splitWave(waveId: string): Promise<unknown>;
@@ -86,6 +88,8 @@ export const ACTION_NAMES: (keyof Actions)[] = [
   "setHidden",
   "releaseWave",
   "deleteChallenge",
+  "archiveChallenge",
+  "restoreChallenge",
   "grantAttempts",
   "groupIntoWave",
   "splitWave",

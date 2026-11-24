@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { clockTime, Modal, ThemeChip, TypeChip } from "../../components/Bits";
 import type { ChallengeInput, ChallengeStatus, ViewChallenge } from "../../core/types";
 import { clockPhase } from "../../core/logic";
@@ -12,6 +13,7 @@ const STATUS_STYLE: Record<ChallengeStatus, string> = {
   scheduled: "border-gold/50 text-gold",
   draft: "border-white/20 text-steel",
   hidden: "border-breach/50 text-breach",
+  archived: "border-white/20 text-steel/60",
 };
 
 export function Library() {
@@ -26,7 +28,9 @@ export function Library() {
   const nextWave = view.waves.reduce((m, w) => Math.max(m, w.number), 0) + 1;
   const togglePick = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 5 ? p : [...p, id]));
 
-  const list = view.challenges.filter((c) => filter === "all" || c.status === filter);
+  const active = view.challenges.filter((c) => c.status !== "archived");
+  const archivedCount = view.challenges.length - active.length;
+  const list = active.filter((c) => filter === "all" || c.status === filter);
   const groups = [
     ...[...view.waves].sort((a, b) => b.number - a.number).map((w) => ({ key: w.id, title: `Wave ${w.number}`, waveId: w.id, items: list.filter((c) => c.waveId === w.id) })),
     { key: "singles", title: "Single challenges", waveId: null as string | null, items: list.filter((c) => !c.waveId) },
@@ -66,11 +70,20 @@ export function Library() {
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter by status">
         {(["all", "live", "scheduled", "draft", "hidden"] as const).map((f) => (
           <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)} className={`rounded-full border px-3 py-1 text-sm capitalize ${filter === f ? "border-reactor bg-reactor/15 text-reactor" : "border-white/10 text-steel"}`}>
-            {f} ({f === "all" ? view.challenges.length : view.challenges.filter((c) => c.status === f).length})
+            {f} ({f === "all" ? active.length : active.filter((c) => c.status === f).length})
           </button>
         ))}
       </div>
 
+      {archivedCount > 0 && (
+        <p className="mb-4 text-sm text-steel/60">
+          {archivedCount} archived challenge{archivedCount === 1 ? " is" : "s are"} kept in{" "}
+          <Link to="/admin/archive" className="text-reactor underline">
+            Archive
+          </Link>
+          .
+        </p>
+      )}
       {groups.length === 0 && <p className="text-steel/60">Nothing here yet.</p>}
       {groups.map((g) => (
         <section key={g.key} className="mb-8">
@@ -179,6 +192,22 @@ export function Library() {
                     )}
                     <button className="btn-ghost btn-sm" onClick={() => edit(c)}>
                       Edit
+                    </button>
+                    <button
+                      className="btn-ghost btn-sm"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            title: `Archive ${c.title}?`,
+                            body: "Players stop seeing it and its points come off the scoreboard. Everything is kept, and you can restore it from Archive any time.",
+                            confirmLabel: "Archive",
+                          })
+                        )
+                          await run(() => actions.archiveChallenge(c.id), `${c.title} moved to Archive.`);
+                      }}
+                    >
+                      Archive
                     </button>
                     <button
                       className="btn-ghost btn-sm text-breach"

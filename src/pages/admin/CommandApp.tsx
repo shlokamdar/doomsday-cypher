@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import { Icon } from "../../components/Icons";
 import { IS_REMOTE } from "../../backend";
 import { Dashboard } from "./Dashboard";
+import { Archive } from "./Archive";
 import { Library } from "./Library";
 import { PostBreaches } from "./PostBreaches";
 import { AdminSettings } from "./Settings";
@@ -14,6 +15,7 @@ const NAV = [
   { to: "/admin", label: "Dashboard", icon: Icon.Grid, end: true },
   { to: "/admin/post", label: "Post challenges", icon: Icon.Send },
   { to: "/admin/library", label: "Challenge library", icon: Icon.Library },
+  { to: "/admin/archive", label: "Archive", icon: Icon.Archive },
   { to: "/admin/teams", label: "Teams & members", icon: Icon.Users },
   { to: "/admin/announcements", label: "Announcements", icon: Icon.Bell },
   { to: "/admin/soundboard", label: "Soundboard", icon: Icon.Sound },
@@ -54,6 +56,7 @@ export default function CommandApp() {
           <Route index element={<Dashboard />} />
           <Route path="post" element={<PostBreaches />} />
           <Route path="library" element={<Library />} />
+          <Route path="archive" element={<Archive />} />
           <Route path="teams" element={<Teams />} />
           <Route path="announcements" element={<AdminTransmissions />} />
           <Route path="soundboard" element={<Soundboard />} />

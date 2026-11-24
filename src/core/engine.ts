@@ -82,7 +82,11 @@ function notify(db: DB, now: number, title: string, body: string, level: Notific
   db.notifications.push({ id: newId("n-"), title, body, level, at: now });
 }
 function liveFor(c: Challenge, now: number) {
-  return c.releaseAt !== null && c.releaseAt <= now && !c.hidden;
+  return !c.archivedAt && c.releaseAt !== null && c.releaseAt <= now && !c.hidden;
+}
+function notArchived(c: Challenge) {
+  if (c.archivedAt) throw new UserError(`"${c.title}" is archived. Restore it first.`);
+  return c;
 }
 
 function makeUsername(db: DB, displayName: string, taken: Set<string>): string {
@@ -420,7 +424,7 @@ export const METHODS: Record<string, MethodSpec> = {
   releaseNow: {
     auth: "admin",
     fn({ db, now }, id: unknown) {
-      const c = findChallenge(db, id);
+      const c = notArchived(findChallenge(db, id));
       c.releaseAt = now;
       c.hidden = false;
       notify(db, now, `New challenge: ${c.title}`, `A ${c.points}-Power challenge has opened.`);
@@ -429,7 +433,7 @@ export const METHODS: Record<string, MethodSpec> = {
   schedule: {
     auth: "admin",
     fn({ db, now }, id: unknown, at: unknown) {
-      const c = findChallenge(db, id);
+      const c = notArchived(findChallenge(db, id));
       const t = time(at, "Release time");
       if (t <= now) throw new UserError("Scheduled time must be in the future.");
       c.releaseAt = t;
@@ -453,7 +457,7 @@ export const METHODS: Record<string, MethodSpec> = {
     fn({ db, now }, waveId: unknown) {
       const wave = db.waves.find((w) => w.id === waveId);
       if (!wave) throw new UserError("Wave not found.", 404);
-      const cs = db.challenges.filter((c) => c.waveId === wave.id);
+      const cs = db.challenges.filter((c) => c.waveId === wave.id && !c.archivedAt);
       for (const c of cs) {
         c.releaseAt = now;
         c.hidden = false;
@@ -487,6 +491,21 @@ export const METHODS: Record<string, MethodSpec> = {
       if (!wave) throw new UserError("That wave no longer exists.", 404);
       for (const c of db.challenges) if (c.waveId === wave.id) c.waveId = null;
       db.waves = db.waves.filter((w) => w.id !== wave.id);
+    },
+  },
+  /** Takes a challenge out of play (players can't see it, its points stop counting) but keeps everything. */
+  archiveChallenge: {
+    auth: "admin",
+    fn({ db, now }, id: unknown) {
+      const c = findChallenge(db, id);
+      if (!c.archivedAt) c.archivedAt = now;
+    },
+  },
+  /** Brings an archived challenge back exactly as it was (same release state, solves count again). */
+  restoreChallenge: {
+    auth: "admin",
+    fn({ db }, id: unknown) {
+      findChallenge(db, id).archivedAt = null;
     },
   },
   deleteChallenge: {

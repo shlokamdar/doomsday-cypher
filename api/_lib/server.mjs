@@ -125,6 +125,7 @@ var DEFAULT_CHALLENGE_TYPES = [
 var MINUTE = 6e4;
 var NEW_BADGE_MS = 15 * MINUTE;
 function challengeStatus(c, now) {
+  if (c.archivedAt) return "archived";
   if (c.releaseAt === null) return "draft";
   if (c.hidden) return "hidden";
   if (c.releaseAt > now) return "scheduled";
@@ -713,6 +714,7 @@ function migrate(input) {
     if (!THEME_IDS.includes(c.theme)) c.theme = "reality";
     c.files = c.files ?? [];
     c.waveId = c.waveId ?? null;
+    c.archivedAt = c.archivedAt ?? null;
   }
   db.dataVersion = DATA_VERSION;
   return db;
@@ -769,7 +771,11 @@ function notify(db, now, title, body, level = "info") {
   db.notifications.push({ id: newId("n-"), title, body, level, at: now });
 }
 function liveFor(c, now) {
-  return c.releaseAt !== null && c.releaseAt <= now && !c.hidden;
+  return !c.archivedAt && c.releaseAt !== null && c.releaseAt <= now && !c.hidden;
+}
+function notArchived(c) {
+  if (c.archivedAt) throw new UserError(`"${c.title}" is archived. Restore it first.`);
+  return c;
 }
 function makeUsername(db, displayName, taken) {
   const base = displayName.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "").slice(0, 24) || "agent";
@@ -1085,7 +1091,7 @@ var METHODS = {
   releaseNow: {
     auth: "admin",
     fn({ db, now }, id) {
-      const c = findChallenge(db, id);
+      const c = notArchived(findChallenge(db, id));
       c.releaseAt = now;
       c.hidden = false;
       notify(db, now, `New challenge: ${c.title}`, `A ${c.points}-Power challenge has opened.`);
@@ -1094,7 +1100,7 @@ var METHODS = {
   schedule: {
     auth: "admin",
     fn({ db, now }, id, at) {
-      const c = findChallenge(db, id);
+      const c = notArchived(findChallenge(db, id));
       const t = time(at, "Release time");
       if (t <= now) throw new UserError("Scheduled time must be in the future.");
       c.releaseAt = t;
@@ -1118,7 +1124,7 @@ var METHODS = {
     fn({ db, now }, waveId) {
       const wave = db.waves.find((w) => w.id === waveId);
       if (!wave) throw new UserError("Wave not found.", 404);
-      const cs = db.challenges.filter((c) => c.waveId === wave.id);
+      const cs = db.challenges.filter((c) => c.waveId === wave.id && !c.archivedAt);
       for (const c of cs) {
         c.releaseAt = now;
         c.hidden = false;
@@ -1152,6 +1158,21 @@ var METHODS = {
       if (!wave) throw new UserError("That wave no longer exists.", 404);
       for (const c of db.challenges) if (c.waveId === wave.id) c.waveId = null;
       db.waves = db.waves.filter((w) => w.id !== wave.id);
+    }
+  },
+  /** Takes a challenge out of play (players can't see it, its points stop counting) but keeps everything. */
+  archiveChallenge: {
+    auth: "admin",
+    fn({ db, now }, id) {
+      const c = findChallenge(db, id);
+      if (!c.archivedAt) c.archivedAt = now;
+    }
+  },
+  /** Brings an archived challenge back exactly as it was (same release state, solves count again). */
+  restoreChallenge: {
+    auth: "admin",
+    fn({ db }, id) {
+      findChallenge(db, id).archivedAt = null;
     }
   },
   deleteChallenge: {
@@ -1469,6 +1490,7 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
         createdAt: c.createdAt,
         status
       };
+      if (c.archivedAt) vc.archivedAt = c.archivedAt;
       if (c.cues) vc.cues = structuredClone(c.cues);
       if (c.python) vc.python = { ...c.python };
       if (isAdmin) vc.hasFlag = !!c.flagHash;
@@ -1481,11 +1503,11 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
   for (const sub of db.submissions) {
     if (!sub.correct) continue;
     const c = challengeById.get(sub.challengeId);
-    if (!c) continue;
+    if (!c || c.archivedAt) continue;
     if (!canSeeTeamEvent(sub.teamId, sub.at)) continue;
     solves.push({ teamId: sub.teamId, userId: sub.userId, challengeId: sub.challengeId, at: sub.at, points: c.points });
   }
-  const hintUnlocks = db.hintUnlocks.filter((h) => canSeeTeamEvent(h.teamId, h.at)).map((h) => ({ ...h }));
+  const hintUnlocks = db.hintUnlocks.filter((h) => !challengeById.get(h.challengeId)?.archivedAt && canSeeTeamEvent(h.teamId, h.at)).map((h) => ({ ...h }));
   let submissions = [];
   if (isAdmin) submissions = db.submissions.map((x) => ({ ...x }));
   else if (myTeam)

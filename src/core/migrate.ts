@@ -66,6 +66,7 @@ export function migrate(input: any): DB {
     if (!THEME_IDS.includes(c.theme)) c.theme = "reality";
     c.files = c.files ?? [];
     c.waveId = c.waveId ?? null;
+    c.archivedAt = c.archivedAt ?? null;
   }
   db.dataVersion = DATA_VERSION;
   return db as DB;

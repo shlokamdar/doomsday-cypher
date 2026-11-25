@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clockTime, downloadText } from "../../components/Bits";
-import type { ChallengeType } from "../../core/types";
 import { useBackend } from "../../hooks/store";
 import { useRun, useUi } from "../../hooks/ui";
 import { AdminTitle } from "./CommandApp";
@@ -11,9 +10,7 @@ export function AdminSettings() {
   const { run, busy } = useRun();
   const { confirm } = useUi();
   const [ev, setEv] = useState({ eventName: s.eventName, tagline: s.tagline, durationMinutes: s.durationMinutes, teamSize: s.teamSize, submissionsPerMinute: s.submissionsPerMinute, forcePasswordChange: s.forcePasswordChange });
-  const [types, setTypes] = useState<ChallengeType[]>(view.challengeTypes);
   const fileRef = useRef<HTMLInputElement>(null);
-  useEffect(() => setTypes(view.challengeTypes), [view.challengeTypes]);
   // "Remove time limit" on the dashboard changes the duration: keep the form in step.
   useEffect(() => setEv((x) => ({ ...x, durationMinutes: s.durationMinutes })), [s.durationMinutes]);
   const unlimited = ev.durationMinutes === 0;
@@ -68,23 +65,6 @@ export function AdminSettings() {
         <p className="text-xs text-steel/60">Start, extend and end the clock from the dashboard.</p>
       </form>
 
-      <section className="plate grid gap-3 p-5">
-        <h2 className="h-display text-2xl">Difficulty levels</h2>
-        <p className="text-sm text-steel/70">Four editable difficulty levels, shown as a chip on every challenge.</p>
-        {types.map((t, i) => (
-          <div key={t.id} className="grid gap-2 sm:grid-cols-[160px_1fr_110px]">
-            <input className="input" aria-label={`Difficulty ${i + 1} name`} value={t.name} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-            <input className="input" aria-label={`Difficulty ${i + 1} description`} value={t.description} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
-            <div className="flex items-center gap-2">
-              <input type="color" aria-label={`Difficulty ${i + 1} colour`} className="h-10 w-12 cursor-pointer rounded border border-white/15 bg-transparent" value={t.color} onChange={(e) => setTypes(types.map((x, j) => (j === i ? { ...x, color: e.target.value.toUpperCase() } : x)))} />
-              <code className="text-xs text-steel/70">{t.color}</code>
-            </div>
-          </div>
-        ))}
-        <button className="btn-primary w-fit" disabled={busy} onClick={() => run(() => actions.updateChallengeTypes(types), "Difficulty levels saved.")}>
-          Save difficulty levels
-        </button>
-      </section>
 
       <section className="plate grid gap-3 p-5">
         <h2 className="h-display text-2xl">Scoreboard</h2>

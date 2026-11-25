@@ -1586,6 +1586,8 @@ async function verifyToken(secret, token, db, now) {
 var DB_KEY = "doomsday:db";
 var META_KEY = "doomsday:meta";
 var soundKey = (id) => `doomsday:sound:${id}`;
+var fileKey = (id) => `doomsday:file:${id}`;
+var isFileId = (id) => typeof id === "string" && /^[a-z0-9]{12,40}$/.test(id);
 function parseMeta(meta) {
   if (!meta) return { version: "0", times: [] };
   const [version, times = ""] = meta.split("|");
@@ -1811,6 +1813,38 @@ async function handleSound(req, deps) {
     return errorRes(e);
   }
 }
+async function handleFile(req, deps) {
+  const notFound = { status: 404, headers: { ...BASE_HEADERS, "Content-Type": "text/plain" }, body: "Not found" };
+  try {
+    if (req.method !== "GET") return json(405, { error: "Method not allowed." });
+    const id = new URL(req.url, "http://local").searchParams.get("id");
+    if (!isFileId(id)) return notFound;
+    const now = (deps.now ?? Date.now)();
+    const { db } = await load(deps, now);
+    const userId = await verifyToken(deps.secret, bearer(req), db, now);
+    if (!userId) return json(401, { error: "Please log in to download challenge files." });
+    const user = db.users.find((u) => u.id === userId);
+    const url = `/api/file?id=${id}`;
+    const allowed = user?.role === "admin" || buildView(db, userId, now).challenges.some((c) => c.files.some((f2) => f2.url === url));
+    if (!allowed) return notFound;
+    const raw = await deps.store.getBlob(fileKey(id));
+    if (!raw) return notFound;
+    const f = JSON.parse(raw);
+    const safeName = f.name.replace(/["\\\r\n]/g, "_");
+    return {
+      status: 200,
+      headers: {
+        ...BASE_HEADERS,
+        "Content-Type": f.type || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(f.name)}`
+      },
+      body: f.b64,
+      base64: true
+    };
+  } catch (e) {
+    return errorRes(e);
+  }
+}
 var INTERNAL = /* @__PURE__ */ new Set(["registerSound"]);
 async function soundRpc(method, args, token, deps) {
   const now = (deps.now ?? Date.now)();
@@ -1931,6 +1965,15 @@ async function stateHandler(req, res) {
   }
   send(res, await handleState(toReq(req), deps));
 }
+async function fileHandler(req, res) {
+  let deps;
+  try {
+    deps = depsFromEnv();
+  } catch (e) {
+    return configError(res, e);
+  }
+  send(res, await handleFile(toReq(req), deps));
+}
 async function soundHandler(req, res) {
   let deps;
   try {
@@ -1957,6 +2000,7 @@ async function rpcHandler(req, res) {
 }
 export {
   depsFromEnv,
+  fileHandler,
   readBody,
   rpcHandler,
   send,

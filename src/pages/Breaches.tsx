@@ -291,9 +291,13 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
           <ul className="flex flex-wrap gap-2">
             {c.files.map((f) => (
               <li key={f.url + f.name}>
-                <a className="btn-ghost btn-sm normal-case tracking-normal" href={f.url} target="_blank" rel="noopener noreferrer">
+                <button
+                  type="button"
+                  className="btn-ghost btn-sm normal-case tracking-normal"
+                  onClick={() => run(() => backend.downloadFile(f.url, f.name))}
+                >
                   <Icon.File size={14} /> {f.name}
-                </a>
+                </button>
               </li>
             ))}
           </ul>

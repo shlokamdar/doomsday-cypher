@@ -5,7 +5,7 @@
   "regions": ["iad1"],
   "headers": [
     {
-      "source": "/api/(state|rpc)",
+      "source": "/api/(state|rpc|file)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
         { "key": "X-Content-Type-Options", "value": "nosniff" }

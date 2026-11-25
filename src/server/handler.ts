@@ -7,7 +7,7 @@ import type { DB } from "../core/types";
 import { buildView, scrub, upcomingTimes } from "../core/view";
 import { signToken, verifyToken } from "./session";
 import { isSoundId, soundMetaFor } from "../core/sounds";
-import { formatMeta, parseMeta, soundKey, type DbStore } from "./store";
+import { fileKey, formatMeta, isFileId, parseMeta, soundKey, type DbStore } from "./store";
 
 export interface ServerDeps {
   store: DbStore;
@@ -128,6 +128,45 @@ export async function handleSound(req: Req, deps: ServerDeps): Promise<Res> {
       status: 200,
       headers: { "Content-Type": m[1], "Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" },
       body: m[2],
+      base64: true,
+    };
+  } catch (e) {
+    return errorRes(e);
+  }
+}
+
+/**
+ * GET /api/file?id=<id> with the player's Bearer token. A file is only served to Admin, or to a
+ * logged-in player who can currently see a challenge that links to it (so handouts never leak
+ * before release, and never sit in the public repo).
+ */
+export async function handleFile(req: Req, deps: ServerDeps): Promise<Res> {
+  const notFound: Res = { status: 404, headers: { ...BASE_HEADERS, "Content-Type": "text/plain" }, body: "Not found" };
+  try {
+    if (req.method !== "GET") return json(405, { error: "Method not allowed." });
+    const id = new URL(req.url, "http://local").searchParams.get("id");
+    if (!isFileId(id)) return notFound;
+    const now = (deps.now ?? Date.now)();
+    const { db } = await load(deps, now);
+    const userId = await verifyToken(deps.secret, bearer(req), db, now);
+    if (!userId) return json(401, { error: "Please log in to download challenge files." });
+    const user = db.users.find((u) => u.id === userId);
+    const url = `/api/file?id=${id}`;
+    const allowed =
+      user?.role === "admin" || buildView(db, userId, now).challenges.some((c) => c.files.some((f) => f.url === url));
+    if (!allowed) return notFound;
+    const raw = await deps.store.getBlob(fileKey(id));
+    if (!raw) return notFound;
+    const f = JSON.parse(raw) as { name: string; type: string; b64: string };
+    const safeName = f.name.replace(/["\\\r\n]/g, "_");
+    return {
+      status: 200,
+      headers: {
+        ...BASE_HEADERS,
+        "Content-Type": f.type || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(f.name)}`,
+      },
+      body: f.b64,
       base64: true,
     };
   } catch (e) {

@@ -183,6 +183,11 @@ export class LocalBackend implements Backend {
     await this.load();
     this.rebuild(true);
   }
+  async downloadFile(url: string) {
+    // The browser-only demo has no private file store; its demo files are public.
+    window.open(url, "_blank", "noopener");
+  }
+
   async logout() {
     this.setSession(null);
     this.rebuild(true);

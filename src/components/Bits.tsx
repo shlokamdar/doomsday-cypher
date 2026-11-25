@@ -144,15 +144,9 @@ export function ThemeChip({ theme }: { theme: ThemeId }) {
   );
 }
 
-export function TypeChip({ typeId }: { typeId: string }) {
-  const { view } = useBackend();
-  const t = view.challengeTypes.find((x) => x.id === typeId);
-  if (!t) return null;
-  return (
-    <span className="chip" style={{ borderColor: t.color + "66", color: t.color }} title={t.description}>
-      {t.name}
-    </span>
-  );
+export function TypeChip(_props: { typeId: string }) {
+  // Difficulty tags are not shown on the site.
+  return null;
 }
 
 export function SectionTitle({ children, kicker, right }: { children: ReactNode; kicker?: string; right?: ReactNode }) {

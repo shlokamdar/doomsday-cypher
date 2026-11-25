@@ -3,8 +3,8 @@ import { RemoteBackend, trimArgs } from "../src/backend/RemoteBackend";
 import { MemoryStorage } from "../src/backend/secureStore";
 import { MINUTE } from "../src/core/logic";
 import type { View } from "../src/core/types";
-import { handleRpc, handleSound, handleState, type Req, type ServerDeps } from "../src/server/handler";
-import { findUpstashConfig, MemoryStore, parseMeta } from "../src/server/store";
+import { handleFile, handleRpc, handleSound, handleState, type Req, type ServerDeps } from "../src/server/handler";
+import { fileKey, findUpstashConfig, MemoryStore, parseMeta } from "../src/server/store";
 import { DEMO_ADMIN_PW, DEMO_PLAYER_PW, input, NEW_PW, T0 } from "./helpers";
 
 const SECRET = "test-secret-0123456789abcdef";
@@ -283,5 +283,40 @@ describe("server: EcoCypher parity", () => {
     const p = await demoPlayer(s);
     const members = p.getView()!.teams.flatMap((t) => t.members);
     expect(members.filter((m) => m.username).map((m) => m.username)).toEqual(["kira.valdez"]);
+  });
+});
+
+describe("server: private challenge files", () => {
+  it("serves a file only to logged-in players who can see its challenge", async () => {
+    const s = server();
+    const admin = await demoAdmin(s);
+    const id = "testfile0001abcd";
+    await s.store.putBlob(fileKey(id), JSON.stringify({ name: "data.sql", type: "application/sql", b64: Buffer.from("SELECT 1;").toString("base64") }));
+    const tokenOf = (b: RemoteBackend) => b["store"].getItem("doomsday.token")!;
+    const get = (token?: string) =>
+      handleFile({ method: "GET", url: `/api/file?id=${id}`, headers: token ? { authorization: `Bearer ${token}` } : {} }, s.deps);
+
+    expect((await get()).status).toBe(401);
+    const p = await demoPlayer(s);
+    // no challenge links to it yet → hidden even from logged-in players
+    expect((await get(tokenOf(p))).status).toBe(404);
+    expect((await get(tokenOf(admin))).status).toBe(200);
+
+    // attach it to a draft: still hidden from players
+    const { id: cid } = await admin.actions.postSingle(input({ files: [{ name: "data.sql", url: `/api/file?id=${id}` }] }), { mode: "draft" });
+    expect((await get(tokenOf(p))).status).toBe(404);
+    // release it: now the player can download, with the original name
+    await admin.actions.releaseNow(cid);
+    const ok = await get(tokenOf(p));
+    expect(ok.status).toBe(200);
+    expect(Buffer.from(ok.body!, "base64").toString()).toBe("SELECT 1;");
+    expect(ok.headers["Content-Disposition"]).toContain('filename="data.sql"');
+    expect(ok.headers["Cache-Control"]).toBe("no-store");
+    // archived again → hidden
+    await admin.actions.archiveChallenge(cid);
+    expect((await get(tokenOf(p))).status).toBe(404);
+    // bad ids are rejected without touching the store
+    const bad = await handleFile({ method: "GET", url: "/api/file?id=../db", headers: { authorization: `Bearer ${tokenOf(admin)}` } }, s.deps);
+    expect(bad.status).toBe(404);
   });
 });

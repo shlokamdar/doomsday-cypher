@@ -4,7 +4,6 @@ import { defaultHintCost } from "../../core/logic";
 import { CUE_KEYS, CUE_LABELS } from "../../core/sounds";
 import { THEMES } from "../../core/themes";
 import type { ChallengeInput, Release } from "../../core/types";
-import { useBackend } from "../../hooks/store";
 import { CueEditor } from "./Soundboard";
 
 export function blankInput(typeId: string): ChallengeInput {
@@ -12,12 +11,11 @@ export function blankInput(typeId: string): ChallengeInput {
 }
 
 export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }: { value: ChallengeInput; onChange: (v: ChallengeInput) => void; editing?: boolean; idPrefix?: string }) {
-  const { view } = useBackend();
   const set = <K extends keyof ChallengeInput>(k: K, v: ChallengeInput[K]) => onChange({ ...value, [k]: v });
   const id = (s: string) => `${idPrefix}-${s}`;
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-[1fr_120px_180px]">
+      <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
         <div>
           <label className="label" htmlFor={id("title")}>
             Title
@@ -29,18 +27,6 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
             Points
           </label>
           <input id={id("points")} type="number" min={1} className="input" value={value.points} onChange={(e) => set("points", Number(e.target.value))} />
-        </div>
-        <div>
-          <label className="label" htmlFor={id("type")}>
-            Difficulty
-          </label>
-          <select id={id("type")} className="input" value={value.typeId} onChange={(e) => set("typeId", e.target.value)}>
-            {view.challengeTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 

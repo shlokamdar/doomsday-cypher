@@ -142,6 +142,8 @@ export interface Backend {
   subscribe(fn: () => void): () => void;
   refresh(): Promise<void>;
   logout(): Promise<void>;
+  /** Downloads a challenge file. Private files (/api/file) need the player's login. */
+  downloadFile(url: string, name: string): Promise<void>;
   /** A URL the browser can play for a sound reference ("builtin:…" or "upload:…"), or null. */
   soundSrc(ref: string): string | null;
   /** serverNow − Date.now(), so clocks agree with the server. */

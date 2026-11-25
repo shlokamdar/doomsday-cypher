@@ -3,7 +3,7 @@ import { RemoteBackend, trimArgs } from "../src/backend/RemoteBackend";
 import { MemoryStorage } from "../src/backend/secureStore";
 import { MINUTE } from "../src/core/logic";
 import type { View } from "../src/core/types";
-import { handleFile, handleRpc, handleSound, handleState, type Req, type ServerDeps } from "../src/server/handler";
+import { handleFile, handleRpc, handleMedia, handleState, type Req, type ServerDeps } from "../src/server/handler";
 import { fileKey, findUpstashConfig, MemoryStore, parseMeta } from "../src/server/store";
 import { DEMO_ADMIN_PW, DEMO_PLAYER_PW, input, NEW_PW, T0 } from "./helpers";
 
@@ -241,26 +241,26 @@ describe("Upstash env detection", () => {
 });
 
 describe("server: EcoCypher parity", () => {
-  it("keeps uploaded audio out of the polled state and serves it on its own", async () => {
+  it("keeps uploaded pop-up images out of the polled state and serves them on their own", async () => {
     const s = server();
     const admin = await demoAdmin(s);
-    const audio = "data:audio/mpeg;base64," + btoa("ID3" + "x".repeat(3000));
-    const meta = await admin.actions.uploadSound("airhorn.mp3", audio);
-    expect(meta.id).toMatch(/^snd-/);
-    expect(admin.getView()!.soundboard.sounds.map((x) => x.name)).toEqual(["airhorn"]);
+    const audio = "data:image/png;base64," + btoa("\x89PNG" + "x".repeat(3000));
+    const meta = await admin.actions.uploadImage("worthy.png", audio);
+    expect(meta.id).toMatch(/^img-/);
+    expect(admin.getView()!.popups.images.map((x) => x.name)).toEqual(["worthy"]);
     expect((await rawView(s)).text).not.toContain("eHh4eHh4");
-    const src = admin.soundSrc(`upload:${meta.id}`)!;
-    const got = await handleSound({ method: "GET", url: src, headers: {} }, s.deps);
+    const src = admin.mediaSrc(`upload:${meta.id}`)!;
+    const got = await handleMedia({ method: "GET", url: src, headers: {} }, s.deps);
     expect(got.status).toBe(200);
-    expect(got.headers["Content-Type"]).toBe("audio/mpeg");
+    expect(got.headers["Content-Type"]).toBe("image/png");
     expect(got.base64).toBe(true);
     // players can't upload, and can't call the internal method directly
     const p = await demoPlayer(s);
-    await expect(p.actions.uploadSound("x.mp3", audio)).rejects.toThrow(/Admin only/);
-    const direct = await handleRpc({ method: "POST", url: "/api/rpc", headers: {}, body: { method: "registerSound", args: [meta] } }, s.deps);
+    await expect(p.actions.uploadImage("x.png", audio)).rejects.toThrow(/Admin only/);
+    const direct = await handleRpc({ method: "POST", url: "/api/rpc", headers: {}, body: { method: "registerImage", args: [meta] } }, s.deps);
     expect(direct.status).toBe(400);
-    await admin.actions.deleteSound(meta.id);
-    expect((await handleSound({ method: "GET", url: src, headers: {} }, s.deps)).status).toBe(404);
+    await admin.actions.deleteImage(meta.id);
+    expect((await handleMedia({ method: "GET", url: src, headers: {} }, s.deps)).status).toBe(404);
   });
 
   it("shows players and visitors no challenges until the clock starts", async () => {

@@ -1,11 +1,11 @@
 import { hashPassword, newSalt } from "./crypto";
 import { DEMO_FLAG_HASHES, DEMO_PASSWORD_HASHES } from "./demoHashes";
 import { MINUTE } from "./logic";
-import { defaultSoundboard } from "./sounds";
+import { defaultPopups } from "./popups";
 import { DEFAULT_CHALLENGE_TYPES } from "./themes";
 import type { Challenge, DB, HintUnlock, Notification, Settings, Submission, User } from "./types";
 
-export const DATA_VERSION = 3;
+export const DATA_VERSION = 4;
 
 export function defaultSettings(): Settings {
   return {
@@ -34,7 +34,7 @@ export function emptyDb(): DB {
     hintUnlocks: [],
     notifications: [],
     settings: defaultSettings(),
-    soundboard: defaultSoundboard(),
+    popups: defaultPopups(),
   };
 }
 

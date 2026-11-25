@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { ThemeIcon, Icon } from "../../components/Icons";
 import { defaultHintCost } from "../../core/logic";
-import { CUE_KEYS, CUE_LABELS } from "../../core/sounds";
+import { CUE_KEYS, CUE_LABELS } from "../../core/popups";
 import { THEMES } from "../../core/themes";
 import type { ChallengeInput, Release } from "../../core/types";
-import { CueEditor } from "./Soundboard";
+import { CueEditor } from "./PopupsBoard";
 
 export function blankInput(typeId: string): ChallengeInput {
   return { title: "", typeId, theme: "reality", points: 100, description: "", flag: "", caseSensitive: false, maxAttempts: 0, hints: [], files: [] };
@@ -160,13 +160,13 @@ export function BreachForm({ value, onChange, editing = false, idPrefix = "bf" }
         )}
       </div>
 
-      <MemeSounds value={value} onChange={onChange} idPrefix={idPrefix} />
+      <PopupOverrides value={value} onChange={onChange} idPrefix={idPrefix} />
     </div>
   );
 }
 
-/** Per-challenge meme sounds. Collapsed by default; every moment follows the Soundboard default unless changed. */
-function MemeSounds({ value, onChange, idPrefix }: { value: ChallengeInput; onChange: (v: ChallengeInput) => void; idPrefix: string }) {
+/** Per-challenge pop-ups. Collapsed by default; every moment follows the Pop-ups board default unless changed. */
+function PopupOverrides({ value, onChange, idPrefix }: { value: ChallengeInput; onChange: (v: ChallengeInput) => void; idPrefix: string }) {
   const custom = CUE_KEYS.filter((k) => value.cues?.[k]).length;
   const [open, setOpen] = useState(custom > 0);
   return (
@@ -178,8 +178,8 @@ function MemeSounds({ value, onChange, idPrefix }: { value: ChallengeInput; onCh
         aria-expanded={open}
       >
         <span>
-          <strong className="text-white">Meme sounds</strong>{" "}
-          <span className="text-steel/60">{custom ? `${custom} custom for this challenge` : "using the Soundboard defaults"}</span>
+          <strong className="text-white">Pop-ups</strong>{" "}
+          <span className="text-steel/60">{custom ? `${custom} custom for this challenge` : "using the Pop-ups board defaults"}</span>
         </span>
         <Icon.Chevron className={`transition-transform ${open ? "rotate-90" : ""}`} />
       </button>

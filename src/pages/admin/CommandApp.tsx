@@ -6,7 +6,7 @@ import { Archive } from "./Archive";
 import { Library } from "./Library";
 import { PostBreaches } from "./PostBreaches";
 import { AdminSettings } from "./Settings";
-import { Soundboard } from "./Soundboard";
+import { PopupsBoard } from "./PopupsBoard";
 import { Teams } from "./Squads";
 import { Submissions } from "./Submissions";
 import { AdminTransmissions } from "./Transmissions";
@@ -18,7 +18,7 @@ const NAV = [
   { to: "/admin/archive", label: "Archive", icon: Icon.Archive },
   { to: "/admin/teams", label: "Teams & members", icon: Icon.Users },
   { to: "/admin/announcements", label: "Announcements", icon: Icon.Bell },
-  { to: "/admin/soundboard", label: "Soundboard", icon: Icon.Sound },
+  { to: "/admin/popups", label: "Pop-ups", icon: Icon.Bolt },
   { to: "/admin/submissions", label: "Submissions", icon: Icon.List },
   { to: "/admin/settings", label: "Settings", icon: Icon.Gear },
 ];
@@ -59,7 +59,7 @@ export default function CommandApp() {
           <Route path="archive" element={<Archive />} />
           <Route path="teams" element={<Teams />} />
           <Route path="announcements" element={<AdminTransmissions />} />
-          <Route path="soundboard" element={<Soundboard />} />
+          <Route path="popups" element={<PopupsBoard />} />
           <Route path="submissions" element={<Submissions />} />
           <Route path="settings" element={<AdminSettings />} />
         </Routes>

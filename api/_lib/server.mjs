@@ -334,78 +334,80 @@ var DEMO_PASSWORD_HASHES = {
   }
 };
 
-// src/core/sounds.ts
-var BUILTIN_SOUNDS = [
-  { ref: "builtin:faaah", name: "FAAAAH", file: "sounds/faaah.mp3" },
-  { ref: "builtin:abhi-maza", name: "Abhi maza aayega", file: "sounds/abhi-maza.mp3" },
-  { ref: "builtin:game-over", name: "Game over", file: "sounds/game-over.mp3" },
-  { ref: "builtin:seal", name: "Breach sealed chord (generated)" }
-];
+// src/core/popups.ts
 var CUE_LABELS = {
   wrong: {
     title: "Wrong flag",
     when: "Any wrong guess (when more than one attempt is left, or attempts are unlimited)",
-    defaultText: "FAAAAAA!!!!!!!!"
+    defaultText: "WRONG FLAG, AGENT",
+    art: "A.R.I.A., the team's holographic assistant, pops up and roasts the guess."
   },
   lastAttempt: {
     title: "Last attempt left",
     when: "A wrong guess that leaves the team exactly one attempt",
-    defaultText: "ABHI MAZA AAYEGA!"
+    defaultText: "ONE ATTEMPT LEFT",
+    art: "A.R.I.A. in amber alert mode, flashing a warning."
   },
   outOfAttempts: {
     title: "Out of attempts",
     when: "The wrong guess that uses the team's final attempt",
-    defaultText: "GAME OVER"
+    defaultText: "LOCKDOWN",
+    art: "A.R.I.A. in red lockdown mode as the challenge seals shut."
   },
-  correct: { title: "Correct flag", when: "The team captures the flag", defaultText: "BREACH SEALED" }
+  correct: {
+    title: "Correct flag",
+    when: "The team captures the flag",
+    defaultText: "WORTHY!",
+    art: "A lightning hammer slams down with thunder bolts and a screen flash."
+  }
 };
 var CUE_KEYS = Object.keys(CUE_LABELS);
-function defaultSoundboard() {
+function defaultPopups() {
   return {
     cues: {
-      wrong: { sound: "builtin:faaah", text: "", seconds: 4 },
-      lastAttempt: { sound: "builtin:abhi-maza", text: "", seconds: 6 },
-      outOfAttempts: { sound: "builtin:game-over", text: "", seconds: 8 },
-      correct: { sound: "builtin:seal", text: "", seconds: 3 }
+      wrong: { image: "none", text: "", seconds: 3 },
+      lastAttempt: { image: "none", text: "", seconds: 4 },
+      outOfAttempts: { image: "none", text: "", seconds: 4 },
+      correct: { image: "none", text: "", seconds: 4 }
     },
-    sounds: []
+    images: []
   };
 }
-var MAX_SOUND_BYTES = 600 * 1024;
-var SOUND_ID = /^snd-[a-z0-9]+$/i;
-var isSoundId = (id) => typeof id === "string" && SOUND_ID.test(id);
-function soundMetaFor(name, dataUrl, now) {
-  const m = typeof dataUrl === "string" ? /^data:(audio\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl) : null;
-  if (!m) throw new UserError("That file isn't an audio file. Use an MP3, WAV, OGG or M4A.");
+var MAX_IMAGE_BYTES = 1024 * 1024;
+var IMAGE_MIME = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=]+)$/;
+var MEDIA_ID = /^img-[a-z0-9]+$/i;
+var isMediaId = (id) => typeof id === "string" && MEDIA_ID.test(id);
+function imageMetaFor(name, dataUrl, now) {
+  const m = typeof dataUrl === "string" ? IMAGE_MIME.exec(dataUrl) : null;
+  if (!m) throw new UserError("That file isn't a supported image. Use a PNG, JPG, GIF or WEBP.");
   const b64 = m[2];
   const bytes = Math.floor(b64.length * 3 / 4) - (b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0);
-  if (bytes > MAX_SOUND_BYTES)
-    throw new UserError(`That sound is ${Math.round(bytes / 1024)} KB. The limit is ${MAX_SOUND_BYTES / 1024} KB; trim it to a few seconds.`);
-  const clean = (typeof name === "string" ? name : "").replace(/\.[a-z0-9]+$/i, "").trim().slice(0, 60) || "Sound";
-  return { id: "snd-" + (newId() + newId()).replace(/[^a-z0-9]/gi, "").slice(0, 14), name: clean, bytes, mime: m[1], addedAt: now };
+  if (bytes > MAX_IMAGE_BYTES) throw new UserError(`That image is ${Math.round(bytes / 1024)} KB. The limit is ${MAX_IMAGE_BYTES / 1024} KB.`);
+  const clean = (typeof name === "string" ? name : "").replace(/\.[a-z0-9]+$/i, "").trim().slice(0, 60) || "Image";
+  return { id: "img-" + (newId() + newId()).replace(/[^a-z0-9]/gi, "").slice(0, 14), name: clean, bytes, mime: m[1], addedAt: now };
 }
-function knownSound(ref, sounds) {
-  return ref === "none" || BUILTIN_SOUNDS.some((b) => b.ref === ref) || ref.startsWith("upload:") && sounds.some((s) => `upload:${s.id}` === ref);
+function knownImage(ref, images) {
+  return ref === "none" || ref.startsWith("upload:") && images.some((s) => `upload:${s.id}` === ref);
 }
-function checkCue(cue, sounds) {
+function checkCue(cue, images) {
   const c = cue ?? {};
-  const sound = String(c.sound ?? "none");
-  if (!knownSound(sound, sounds)) throw new UserError("That sound isn't on the soundboard any more.");
-  const seconds = Math.min(30, Math.max(1, Math.round(Number(c.seconds) || 4)));
-  return { sound, text: String(c.text ?? "").trim().slice(0, 40), seconds };
+  const image = String(c.image ?? "none");
+  if (!knownImage(image, images)) throw new UserError("That image isn't on the Pop-ups board any more.");
+  const seconds = Math.min(10, Math.max(1, Math.round(Number(c.seconds) || 3)));
+  return { image, text: String(c.text ?? "").trim().slice(0, 40), seconds };
 }
-function checkCues(cues, sounds) {
+function checkCues(cues, images) {
   if (!cues || typeof cues !== "object") return void 0;
   const out = {};
   for (const k of CUE_KEYS) {
     const c = cues[k];
-    if (c) out[k] = checkCue(c, sounds);
+    if (c) out[k] = checkCue(c, images);
   }
   return Object.keys(out).length ? out : void 0;
 }
 
 // src/core/seed.ts
-var DATA_VERSION = 3;
+var DATA_VERSION = 4;
 function defaultSettings() {
   return {
     eventName: "DOOMSDAY CYPHER",
@@ -432,7 +434,7 @@ function emptyDb() {
     hintUnlocks: [],
     notifications: [],
     settings: defaultSettings(),
-    soundboard: defaultSoundboard()
+    popups: defaultPopups()
   };
 }
 async function freshDb(adminPassword, now = Date.now()) {
@@ -691,8 +693,13 @@ function migrate(input) {
     db.dataVersion = 2;
   }
   if (from < 3) {
-    db.soundboard = defaultSoundboard();
     db.dataVersion = 3;
+  }
+  if (from < 4) {
+    delete db.soundboard;
+    db.popups = defaultPopups();
+    for (const c of db.challenges ?? []) delete c.cues;
+    db.dataVersion = 4;
   }
   db.users = db.users ?? [];
   db.teams = db.teams ?? [];
@@ -703,11 +710,11 @@ function migrate(input) {
   db.notifications = db.notifications ?? [];
   db.challengeTypes = db.challengeTypes?.length ? db.challengeTypes : DEFAULT_CHALLENGE_TYPES.map((t) => ({ ...t }));
   db.settings = { ...defaultSettings(), ...db.settings ?? {} };
-  const board = defaultSoundboard();
-  db.soundboard = db.soundboard ?? board;
-  db.soundboard.sounds = Array.isArray(db.soundboard.sounds) ? db.soundboard.sounds : [];
-  db.soundboard.cues = { ...board.cues, ...db.soundboard.cues ?? {} };
-  for (const k of CUE_KEYS) db.soundboard.cues[k] = db.soundboard.cues[k] ?? board.cues[k];
+  const board = defaultPopups();
+  db.popups = db.popups ?? board;
+  db.popups.images = Array.isArray(db.popups.images) ? db.popups.images : [];
+  db.popups.cues = { ...board.cues, ...db.popups.cues ?? {} };
+  for (const k of CUE_KEYS) db.popups.cues[k] = db.popups.cues[k] ?? board.cues[k];
   for (const c of db.challenges) {
     if (c.theme === "void") c.theme = "archive";
     if (c.theme === "chronos") c.theme = "machine";
@@ -838,7 +845,7 @@ async function buildChallenge(db, raw, now, existing) {
     if (!/^(https?:\/\/|\/|files\/)/i.test(url)) throw new UserError(`File ${i + 1} link must start with https:// or /.`);
     return { name: str(f?.name, `File ${i + 1} name`, 120), url };
   });
-  const cues = checkCues(raw.cues, db.soundboard.sounds);
+  const cues = checkCues(raw.cues, db.popups.images);
   let python;
   if (raw.python && typeof raw.python === "object" && raw.python.enabled) {
     const starter = typeof raw.python.starter === "string" ? raw.python.starter : "";
@@ -1386,28 +1393,28 @@ var METHODS = {
       db.settings.freezeAt = null;
     }
   },
-  /* ---- Admin: soundboard ---- */
+  /* ---- Admin: pop-ups ---- */
   updateCue: {
     auth: "admin",
     fn({ db }, key, cue) {
       if (!CUE_KEYS.includes(key)) throw new UserError("Unknown moment.");
-      db.soundboard.cues[key] = checkCue(cue, db.soundboard.sounds);
+      db.popups.cues[key] = checkCue(cue, db.popups.images);
     }
   },
   /**
-   * Records an uploaded sound's details. The audio itself is stored by the backend first
+   * Records an uploaded image's details. The image itself is stored by the backend first
    * (this browser's storage, or the server's database), never inside the event data.
    */
-  registerSound: {
+  registerImage: {
     auth: "admin",
     fn({ db }, metaRaw) {
       const m = metaRaw;
-      if (!m || !isSoundId(m.id) || typeof m.mime !== "string" || !/^audio\//.test(m.mime)) throw new UserError("Bad sound.");
-      if (db.soundboard.sounds.some((x) => x.id === m.id)) return { id: m.id };
-      if (db.soundboard.sounds.length >= 40) throw new UserError("The soundboard is full (40 sounds). Delete one first.");
-      db.soundboard.sounds.push({
+      if (!m || !isMediaId(m.id) || typeof m.mime !== "string" || !/^image\/(png|jpeg|gif|webp)$/.test(m.mime)) throw new UserError("Bad image.");
+      if (db.popups.images.some((x) => x.id === m.id)) return { id: m.id };
+      if (db.popups.images.length >= 60) throw new UserError("The Pop-ups board is full (60 images). Delete one first.");
+      db.popups.images.push({
         id: m.id,
-        name: str(m.name, "Sound name", 60),
+        name: str(m.name, "Image name", 60),
         bytes: int(m.bytes, "Size", 0, 1e7),
         mime: m.mime,
         addedAt: time(m.addedAt, "Added")
@@ -1415,17 +1422,17 @@ var METHODS = {
       return { id: m.id };
     }
   },
-  deleteSound: {
+  deleteImage: {
     auth: "admin",
     fn({ db }, id) {
-      if (!isSoundId(id)) throw new UserError("Sound not found.", 404);
+      if (!isMediaId(id)) throw new UserError("Image not found.", 404);
       const ref = `upload:${id}`;
-      const defaults = defaultSoundboard().cues;
-      db.soundboard.sounds = db.soundboard.sounds.filter((s) => s.id !== id);
-      for (const k of CUE_KEYS) if (db.soundboard.cues[k].sound === ref) db.soundboard.cues[k] = defaults[k];
+      const defaults = defaultPopups().cues;
+      db.popups.images = db.popups.images.filter((s) => s.id !== id);
+      for (const k of CUE_KEYS) if (db.popups.cues[k].image === ref) db.popups.cues[k] = defaults[k];
       for (const c of db.challenges) {
         if (!c.cues) continue;
-        for (const k of CUE_KEYS) if (c.cues[k]?.sound === ref) delete c.cues[k];
+        for (const k of CUE_KEYS) if (c.cues[k]?.image === ref) delete c.cues[k];
         if (!Object.keys(c.cues).length) delete c.cues;
       }
     }
@@ -1448,7 +1455,7 @@ var METHODS = {
   /**
    * Clears everything that happened in the event (teams, members, challenges, waves, submissions,
    * hints, announcements, the clock) but keeps the admin who pressed it with the same password,
-   * the event settings, the categories and the soundboard.
+   * the event settings, the categories and the pop-ups.
    */
   startFresh: {
     auth: "admin",
@@ -1458,7 +1465,7 @@ var METHODS = {
       next.users.push({ ...structuredClone(me), mustChangePassword: false });
       next.settings = { ...db.settings, startsAt: null, endsAt: null, freezeAt: null };
       next.challengeTypes = structuredClone(db.challengeTypes);
-      next.soundboard = structuredClone(db.soundboard);
+      next.popups = structuredClone(db.popups);
       replaceDb(db, next);
       return { __session: me.id };
     }
@@ -1585,7 +1592,7 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
     hintUnlocks,
     submissions,
     notifications: [...db.notifications].sort((a, b) => b.at - a.at).map((n) => ({ ...n })),
-    soundboard: structuredClone(db.soundboard)
+    popups: structuredClone(db.popups)
   };
   if (sessionInvalid) view.sessionInvalid = true;
   if (isAdmin) view.users = db.users.map((u) => publicUser(u, true));
@@ -1640,7 +1647,7 @@ async function verifyToken(secret, token, db, now) {
 // src/server/store.ts
 var DB_KEY = "doomsday:db";
 var META_KEY = "doomsday:meta";
-var soundKey = (id) => `doomsday:sound:${id}`;
+var mediaKey = (id) => `doomsday:media:${id}`;
 var fileKey = (id) => `doomsday:file:${id}`;
 var isFileId = (id) => typeof id === "string" && /^[a-z0-9]{12,40}$/.test(id);
 function parseMeta(meta) {
@@ -1849,14 +1856,14 @@ async function handleState(req, deps) {
     return errorRes(e);
   }
 }
-async function handleSound(req, deps) {
+async function handleMedia(req, deps) {
   try {
     if (req.method !== "GET") return json(405, { error: "Method not allowed." });
     const id = new URL(req.url, "http://local").searchParams.get("id");
     const notFound = { status: 404, headers: { ...BASE_HEADERS, "Content-Type": "text/plain" }, body: "Not found" };
-    if (!isSoundId(id)) return notFound;
-    const dataUrl = await deps.store.getBlob(soundKey(id));
-    const m = dataUrl ? /^data:(audio\/[a-z0-9.+-]+);base64,(.*)$/i.exec(dataUrl) : null;
+    if (!isMediaId(id)) return notFound;
+    const dataUrl = await deps.store.getBlob(mediaKey(id));
+    const m = dataUrl ? /^data:(image\/(?:png|jpeg|gif|webp));base64,(.*)$/i.exec(dataUrl) : null;
     if (!m) return notFound;
     return {
       status: 200,
@@ -1900,24 +1907,24 @@ async function handleFile(req, deps) {
     return errorRes(e);
   }
 }
-var INTERNAL = /* @__PURE__ */ new Set(["registerSound"]);
-async function soundRpc(method, args, token, deps) {
+var INTERNAL = /* @__PURE__ */ new Set(["registerImage"]);
+async function mediaRpc(method, args, token, deps) {
   const now = (deps.now ?? Date.now)();
   const { db } = await load(deps, now);
   const actorId = await verifyToken(deps.secret, token, db, now);
   const actor = actorId ? db.users.find((u) => u.id === actorId) : void 0;
   if (!actor) return json(401, { error: "Please log in again." });
   if (actor.role !== "admin") return json(403, { error: "Admin only." });
-  if (method === "uploadSound") {
-    const meta = soundMetaFor(args[0], args[1], now);
-    await deps.store.putBlob(soundKey(meta.id), args[1]);
-    const r2 = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "registerSound", args: [meta] } }, deps, true);
-    if (r2.status !== 200) await deps.store.delBlob(soundKey(meta.id));
+  if (method === "uploadImage") {
+    const meta = imageMetaFor(args[0], args[1], now);
+    await deps.store.putBlob(mediaKey(meta.id), args[1]);
+    const r2 = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "registerImage", args: [meta] } }, deps, true);
+    if (r2.status !== 200) await deps.store.delBlob(mediaKey(meta.id));
     else r2.body = JSON.stringify({ result: meta });
     return r2;
   }
-  const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "deleteSound", args } }, deps, true);
-  if (r.status === 200 && isSoundId(args[0])) await deps.store.delBlob(soundKey(args[0]));
+  const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "deleteImage", args } }, deps, true);
+  if (r.status === 200 && isMediaId(args[0])) await deps.store.delBlob(mediaKey(args[0]));
   return r;
 }
 async function handleRpc(req, deps, internal = false) {
@@ -1933,9 +1940,9 @@ async function handleRpc(req, deps, internal = false) {
     }
     const method = body?.method;
     const args = body?.args ?? [];
-    if (!internal && (method === "uploadSound" || method === "deleteSound")) {
+    if (!internal && (method === "uploadImage" || method === "deleteImage")) {
       if (!Array.isArray(args)) return json(400, { error: "Bad request." });
-      return await soundRpc(method, args, bearer(req), deps);
+      return await mediaRpc(method, args, bearer(req), deps);
     }
     if (!internal && INTERNAL.has(method)) return json(400, { error: "Unknown action." });
     if (typeof method !== "string" || !Object.prototype.hasOwnProperty.call(METHODS, method)) {
@@ -2029,14 +2036,14 @@ async function fileHandler(req, res) {
   }
   send(res, await handleFile(toReq(req), deps));
 }
-async function soundHandler(req, res) {
+async function mediaHandler(req, res) {
   let deps;
   try {
     deps = depsFromEnv();
   } catch (e) {
     return configError(res, e);
   }
-  send(res, await handleSound(toReq(req), deps));
+  send(res, await handleMedia(toReq(req), deps));
 }
 async function rpcHandler(req, res) {
   let deps;
@@ -2056,10 +2063,10 @@ async function rpcHandler(req, res) {
 export {
   depsFromEnv,
   fileHandler,
+  mediaHandler,
   readBody,
   rpcHandler,
   send,
-  soundHandler,
   stateHandler,
   toReq
 };

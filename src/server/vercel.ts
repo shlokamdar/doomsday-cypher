@@ -1,6 +1,6 @@
 /* Entry point bundled by esbuild into api/_lib/server.mjs. */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handleFile, handleRpc, handleSound, handleState, type Req, type Res, type ServerDeps } from "./handler";
+import { handleFile, handleRpc, handleMedia, handleState, type Req, type Res, type ServerDeps } from "./handler";
 import { findUpstashConfig, MemoryStore, UpstashStore, type DbStore } from "./store";
 
 let cached: { store: DbStore } | null = null;
@@ -70,14 +70,14 @@ export async function fileHandler(req: IncomingMessage, res: ServerResponse) {
   send(res, await handleFile(toReq(req), deps));
 }
 
-export async function soundHandler(req: IncomingMessage, res: ServerResponse) {
+export async function mediaHandler(req: IncomingMessage, res: ServerResponse) {
   let deps: ServerDeps;
   try {
     deps = depsFromEnv();
   } catch (e) {
     return configError(res, e);
   }
-  send(res, await handleSound(toReq(req), deps));
+  send(res, await handleMedia(toReq(req), deps));
 }
 
 export async function rpcHandler(req: IncomingMessage, res: ServerResponse) {

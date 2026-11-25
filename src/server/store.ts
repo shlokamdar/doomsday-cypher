@@ -7,7 +7,7 @@ export interface DbStore {
   read(): Promise<{ db: string | null; meta: string | null }>;
   /** Writes db+meta only if the stored version still equals `expectedVersion`. */
   cas(expectedVersion: string, db: string, meta: string): Promise<boolean>;
-  /** Large values kept outside the DB (uploaded sounds), so polling never downloads them. */
+  /** Large values kept outside the DB (pop-up images, files), so polling never downloads them. */
   getBlob(key: string): Promise<string | null>;
   putBlob(key: string, value: string): Promise<void>;
   delBlob(key: string): Promise<void>;
@@ -15,7 +15,7 @@ export interface DbStore {
 
 export const DB_KEY = "doomsday:db";
 export const META_KEY = "doomsday:meta";
-export const soundKey = (id: string) => `doomsday:sound:${id}`;
+export const mediaKey = (id: string) => `doomsday:media:${id}`;
 /** Private challenge files (handouts). Stored as JSON {name, type, b64}. */
 export const fileKey = (id: string) => `doomsday:file:${id}`;
 export const isFileId = (id: unknown): id is string => typeof id === "string" && /^[a-z0-9]{12,40}$/.test(id);

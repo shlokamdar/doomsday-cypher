@@ -6,8 +6,8 @@ import { demoDbWithAdminPassword, freshDb } from "../core/seed";
 import type { DB } from "../core/types";
 import { buildView, scrub, upcomingTimes } from "../core/view";
 import { signToken, verifyToken } from "./session";
-import { isSoundId, soundMetaFor } from "../core/sounds";
-import { fileKey, formatMeta, isFileId, parseMeta, soundKey, type DbStore } from "./store";
+import { imageMetaFor, isMediaId } from "../core/popups";
+import { fileKey, formatMeta, isFileId, mediaKey, parseMeta, type DbStore } from "./store";
 
 export interface ServerDeps {
   store: DbStore;
@@ -114,15 +114,15 @@ export async function handleState(req: Req, deps: ServerDeps): Promise<Res> {
   }
 }
 
-/** GET /api/sound?id=snd-… : an uploaded sound's audio. Sounds aren't secret, so they're cached. */
-export async function handleSound(req: Req, deps: ServerDeps): Promise<Res> {
+/** GET /api/media?id=img-… : an uploaded pop-up image. Images aren't secret, so they're cached. */
+export async function handleMedia(req: Req, deps: ServerDeps): Promise<Res> {
   try {
     if (req.method !== "GET") return json(405, { error: "Method not allowed." });
     const id = new URL(req.url, "http://local").searchParams.get("id");
     const notFound: Res = { status: 404, headers: { ...BASE_HEADERS, "Content-Type": "text/plain" }, body: "Not found" };
-    if (!isSoundId(id)) return notFound;
-    const dataUrl = await deps.store.getBlob(soundKey(id));
-    const m = dataUrl ? /^data:(audio\/[a-z0-9.+-]+);base64,(.*)$/i.exec(dataUrl) : null;
+    if (!isMediaId(id)) return notFound;
+    const dataUrl = await deps.store.getBlob(mediaKey(id));
+    const m = dataUrl ? /^data:(image\/(?:png|jpeg|gif|webp));base64,(.*)$/i.exec(dataUrl) : null;
     if (!m) return notFound;
     return {
       status: 200,
@@ -175,29 +175,29 @@ export async function handleFile(req: Req, deps: ServerDeps): Promise<Res> {
 }
 
 /** Methods the browser may not call directly (the server calls them for it). */
-const INTERNAL = new Set(["registerSound"]);
+const INTERNAL = new Set(["registerImage"]);
 
 /**
- * Sounds: the audio goes into its own database entry and only its details into the event data,
+ * Pop-up images: the bytes go into their own database entry and only the details into the event data,
  * so the polled state stays small.
  */
-async function soundRpc(method: string, args: unknown[], token: string | null, deps: ServerDeps): Promise<Res> {
+async function mediaRpc(method: string, args: unknown[], token: string | null, deps: ServerDeps): Promise<Res> {
   const now = (deps.now ?? Date.now)();
   const { db } = await load(deps, now);
   const actorId = await verifyToken(deps.secret, token, db, now);
   const actor = actorId ? db.users.find((u) => u.id === actorId) : undefined;
   if (!actor) return json(401, { error: "Please log in again." });
   if (actor.role !== "admin") return json(403, { error: "Admin only." });
-  if (method === "uploadSound") {
-    const meta = soundMetaFor(args[0], args[1], now);
-    await deps.store.putBlob(soundKey(meta.id), args[1] as string);
-    const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "registerSound", args: [meta] } }, deps, true);
-    if (r.status !== 200) await deps.store.delBlob(soundKey(meta.id));
+  if (method === "uploadImage") {
+    const meta = imageMetaFor(args[0], args[1], now);
+    await deps.store.putBlob(mediaKey(meta.id), args[1] as string);
+    const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "registerImage", args: [meta] } }, deps, true);
+    if (r.status !== 200) await deps.store.delBlob(mediaKey(meta.id));
     else r.body = JSON.stringify({ result: meta });
     return r;
   }
-  const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "deleteSound", args } }, deps, true);
-  if (r.status === 200 && isSoundId(args[0])) await deps.store.delBlob(soundKey(args[0]));
+  const r = await handleRpc({ method: "POST", url: "/api/rpc", headers: { authorization: `Bearer ${token}` }, body: { method: "deleteImage", args } }, deps, true);
+  if (r.status === 200 && isMediaId(args[0])) await deps.store.delBlob(mediaKey(args[0]));
   return r;
 }
 
@@ -215,9 +215,9 @@ export async function handleRpc(req: Req, deps: ServerDeps, internal = false): P
     }
     const method = (body as { method?: unknown })?.method;
     const args = (body as { args?: unknown })?.args ?? [];
-    if (!internal && (method === "uploadSound" || method === "deleteSound")) {
+    if (!internal && (method === "uploadImage" || method === "deleteImage")) {
       if (!Array.isArray(args)) return json(400, { error: "Bad request." });
-      return await soundRpc(method, args, bearer(req), deps);
+      return await mediaRpc(method, args, bearer(req), deps);
     }
     if (!internal && INTERNAL.has(method as string)) return json(400, { error: "Unknown action." });
     if (typeof method !== "string" || !Object.prototype.hasOwnProperty.call(METHODS, method)) {

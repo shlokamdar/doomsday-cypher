@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Actions, Backend } from "../backend/Backend";
 import { computeStandings, type Standing } from "../core/logic";
 import type { View } from "../core/types";
@@ -92,17 +92,3 @@ export function safeSet(storage: "local" | "session", key: string, value: string
   }
 }
 
-export function useSoundSetting(): [boolean, (v: boolean) => void] {
-  const [on, setOn] = useState(() => safeGet("local", "doomsday.sound") !== "off");
-  const set = useCallback((v: boolean) => {
-    setOn(v);
-    safeSet("local", "doomsday.sound", v ? "on" : "off");
-    window.dispatchEvent(new Event("doomsday-sound"));
-  }, []);
-  useEffect(() => {
-    const sync = () => setOn(safeGet("local", "doomsday.sound") !== "off");
-    window.addEventListener("doomsday-sound", sync);
-    return () => window.removeEventListener("doomsday-sound", sync);
-  }, []);
-  return [on, set];
-}

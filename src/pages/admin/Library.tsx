@@ -224,7 +224,7 @@ export function Library() {
                       </span>
                       <span>· {c.maxAttempts ? `${c.maxAttempts + c.bonusAttempts} attempts/team` : "unlimited attempts"}</span>
                       {c.python?.enabled && <span className="chip border-reactor/40 text-reactor">Python workspace</span>}
-                      {c.cues && <span className="chip border-gold/40 text-gold">Custom sounds</span>}
+                      {c.cues && <span className="chip border-gold/40 text-gold">Custom pop-ups</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">

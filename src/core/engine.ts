@@ -4,7 +4,7 @@ import { UserError } from "./errors";
 import { attemptInfo, clockName, clockPhase, MINUTE } from "./logic";
 import { validateBackup } from "./migrate";
 import { DATA_VERSION, demoDb, emptyDb } from "./seed";
-import { checkCue, checkCues, CUE_KEYS, defaultSoundboard, isSoundId } from "./sounds";
+import { checkCue, checkCues, CUE_KEYS, defaultPopups, isMediaId } from "./popups";
 import { THEME_IDS } from "./themes";
 import type {
   Challenge,
@@ -15,7 +15,7 @@ import type {
   DB,
   NotificationLevel,
   Release,
-  SoundMeta,
+  MediaMeta,
   SubmitResult,
   Team,
   User,
@@ -160,7 +160,7 @@ async function buildChallenge(db: DB, raw: any, now: number, existing?: Challeng
     if (!/^(https?:\/\/|\/|files\/)/i.test(url)) throw new UserError(`File ${i + 1} link must start with https:// or /.`);
     return { name: str(f?.name, `File ${i + 1} name`, 120), url };
   });
-  const cues = checkCues(raw.cues, db.soundboard.sounds);
+  const cues = checkCues(raw.cues, db.popups.images);
   let python: Challenge["python"];
   if (raw.python && typeof raw.python === "object" && raw.python.enabled) {
     const starter = typeof raw.python.starter === "string" ? raw.python.starter : "";
@@ -723,28 +723,28 @@ export const METHODS: Record<string, MethodSpec> = {
     },
   },
 
-  /* ---- Admin: soundboard ---- */
+  /* ---- Admin: pop-ups ---- */
   updateCue: {
     auth: "admin",
     fn({ db }, key: unknown, cue: unknown) {
       if (!CUE_KEYS.includes(key as CueKey)) throw new UserError("Unknown moment.");
-      db.soundboard.cues[key as CueKey] = checkCue(cue, db.soundboard.sounds);
+      db.popups.cues[key as CueKey] = checkCue(cue, db.popups.images);
     },
   },
   /**
-   * Records an uploaded sound's details. The audio itself is stored by the backend first
+   * Records an uploaded image's details. The image itself is stored by the backend first
    * (this browser's storage, or the server's database), never inside the event data.
    */
-  registerSound: {
+  registerImage: {
     auth: "admin",
     fn({ db }, metaRaw: unknown) {
-      const m = metaRaw as SoundMeta;
-      if (!m || !isSoundId(m.id) || typeof m.mime !== "string" || !/^audio\//.test(m.mime)) throw new UserError("Bad sound.");
-      if (db.soundboard.sounds.some((x) => x.id === m.id)) return { id: m.id };
-      if (db.soundboard.sounds.length >= 40) throw new UserError("The soundboard is full (40 sounds). Delete one first.");
-      db.soundboard.sounds.push({
+      const m = metaRaw as MediaMeta;
+      if (!m || !isMediaId(m.id) || typeof m.mime !== "string" || !/^image\/(png|jpeg|gif|webp)$/.test(m.mime)) throw new UserError("Bad image.");
+      if (db.popups.images.some((x) => x.id === m.id)) return { id: m.id };
+      if (db.popups.images.length >= 60) throw new UserError("The Pop-ups board is full (60 images). Delete one first.");
+      db.popups.images.push({
         id: m.id,
-        name: str(m.name, "Sound name", 60),
+        name: str(m.name, "Image name", 60),
         bytes: int(m.bytes, "Size", 0, 10_000_000),
         mime: m.mime,
         addedAt: time(m.addedAt, "Added"),
@@ -752,17 +752,17 @@ export const METHODS: Record<string, MethodSpec> = {
       return { id: m.id };
     },
   },
-  deleteSound: {
+  deleteImage: {
     auth: "admin",
     fn({ db }, id: unknown) {
-      if (!isSoundId(id)) throw new UserError("Sound not found.", 404);
+      if (!isMediaId(id)) throw new UserError("Image not found.", 404);
       const ref = `upload:${id}`;
-      const defaults = defaultSoundboard().cues;
-      db.soundboard.sounds = db.soundboard.sounds.filter((s) => s.id !== id);
-      for (const k of CUE_KEYS) if (db.soundboard.cues[k].sound === ref) db.soundboard.cues[k] = defaults[k];
+      const defaults = defaultPopups().cues;
+      db.popups.images = db.popups.images.filter((s) => s.id !== id);
+      for (const k of CUE_KEYS) if (db.popups.cues[k].image === ref) db.popups.cues[k] = defaults[k];
       for (const c of db.challenges) {
         if (!c.cues) continue;
-        for (const k of CUE_KEYS) if (c.cues[k]?.sound === ref) delete c.cues[k];
+        for (const k of CUE_KEYS) if (c.cues[k]?.image === ref) delete c.cues[k];
         if (!Object.keys(c.cues).length) delete c.cues;
       }
     },
@@ -786,7 +786,7 @@ export const METHODS: Record<string, MethodSpec> = {
   /**
    * Clears everything that happened in the event (teams, members, challenges, waves, submissions,
    * hints, announcements, the clock) but keeps the admin who pressed it with the same password,
-   * the event settings, the categories and the soundboard.
+   * the event settings, the categories and the pop-ups.
    */
   startFresh: {
     auth: "admin",
@@ -796,7 +796,7 @@ export const METHODS: Record<string, MethodSpec> = {
       next.users.push({ ...structuredClone(me), mustChangePassword: false });
       next.settings = { ...db.settings, startsAt: null, endsAt: null, freezeAt: null };
       next.challengeTypes = structuredClone(db.challengeTypes);
-      next.soundboard = structuredClone(db.soundboard);
+      next.popups = structuredClone(db.popups);
       replaceDb(db, next);
       return { __session: me.id };
     },

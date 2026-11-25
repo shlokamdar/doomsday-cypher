@@ -18,7 +18,7 @@ Admin, Announcements and the Timer. Flags look like **`IAMDOOM{...}`**.
 
 This site is the warm-up for **EcoCypher** and works the same way, so admins and players only learn
 one system: waves of 5 or single challenges, the event clock (or no time limit), hints that cost
-points, shared attempt limits, the Soundboard, the Python workspace, and the same admin pages.
+points, shared attempt limits, pop-ups for every flag moment, the Python workspace, and the same admin pages.
 
 **Players**
 - Log in by picking your team, tapping your name and entering your password. Forcing people to replace a temporary
@@ -26,13 +26,14 @@ points, shared attempt limits, the Soundboard, the Python workspace, and the sam
 - Breaches page: squad header with emblem, count-up Power, rank, member chips and the Doomsday Clock;
   latest transmission; category filters; single breaches then incursion waves ("x of 5 sealed").
 - Breach window: briefing, files, hints with a confirm step (cost charged once, visible to the whole
-  squad, shows who opened it), shared attempt limits, flag box that opens/closes with the clock, sound toggle.
+  squad, shows who opened it), shared attempt limits, flag box that opens/closes with the clock.
 - Challenges stay hidden (no titles at all) until Admin starts the event clock; the page then fills
   in by itself. Hints and the flag box say they open when the clock starts.
-- Wrong flag: full-screen "FAAAAAA!!!!!!!!" with The Sovereign face-palming, once per guess. The
-  guess that leaves one attempt shows "ABHI MAZA AAYEGA!", the one that uses the last attempt
-  "GAME OVER". Correct flag: "BREACH SEALED" stamp, collapsing portal and a power-up chord.
-  Sounds and pop-up text come from the Soundboard (and can be changed per challenge).
+- Wrong flag: A.R.I.A., an original holographic assistant, pops up and roasts the guess (cyan). The
+  guess that leaves one attempt turns her amber ("ONE ATTEMPT LEFT"), the one that uses the last attempt
+  red ("LOCKDOWN"). Correct flag: a lightning hammer drops from a storm and slams down with bolts,
+  a white flash and a shockwave. The site plays no sounds. Text, time on screen and an optional
+  meme image for each moment come from the Pop-ups page (and can be changed per challenge).
 - Python workspace (optional per challenge): Python 3 runs in the player's browser (Pyodide,
   self-hosted in `public/pyodide/`) with numpy, pandas and the standard library. The challenge's
   own `files/…` links are ready to open by name. 30-second limit per run, Stop button. Code never
@@ -52,16 +53,17 @@ points, shared attempt limits, the Soundboard, the Python workspace, and the sam
 - Breach library: release now, schedule, unpublish, edit (flag kept if left empty), delete, +3 attempts
   for every squad, per-breach solves/attempts/hints, "Release this wave now", tick 5 single
   challenges to **make a wave**, **split a wave** back into singles.
-- Soundboard: pick the sound, pop-up text and length for each moment (wrong flag, last attempt
-  left, out of attempts, correct flag), preview them, upload your own short clips (≤ 600 KB).
-  Uploaded audio is stored outside the event data and served from `/api/sound`.
+- Pop-ups: for each moment (wrong flag, last attempt left, out of attempts, correct flag) set the
+  big text, how long it stays up, and an optional meme image; preview it exactly as players see it.
+  Upload PNG/JPG/GIF/WEBP memes (≤ 1 MB each, several at once). Images are stored outside the event
+  data and served from `/api/media`. SVG is refused (it can carry scripts).
 - Squads & members: create, CSV import, credentials shown once (copy / print), rename, add member,
   reset password, remove member, delete squad.
 - Transmissions, filterable submission log (wrong guesses included; wrong answers typed by more
   than one team are marked "Shared answer"), settings (event, 4 editable difficulty levels,
   scoreboard show/hide/freeze, backup export/import, start fresh, load demo).
 - Start fresh clears teams, challenges, submissions and announcements but keeps your admin login
-  (same password), the settings, difficulty levels and the soundboard.
+  (same password), the settings, difficulty levels and the pop-ups.
 
 ## Demo vs live
 
@@ -99,7 +101,7 @@ Live event setup: see **[docs/VERCEL.md](docs/VERCEL.md)**.
   every RPC result except Command's backup export.
 - RPC methods are whitelisted; `loadDemo` and `startFresh` are Command only.
 - Rate limit: `submissionsPerMinute` guesses per squad per breach (default 10).
-- Build-time CSP: `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' data: blob:; object-src 'none'`
+- Build-time CSP: `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; object-src 'none'`
   (`wasm-unsafe-eval` lets the in-browser Python start; it does not allow `eval()` of JavaScript).
   Fonts are self-hosted with @fontsource. No source maps. API responses send `Cache-Control: no-store`
   and `X-Content-Type-Options: nosniff`.
@@ -162,8 +164,8 @@ node scripts/e2e.mjs   # two-browser end-to-end check (needs Chrome + Edge, buil
 ```
 
 `scripts/gen-demo-hashes.mjs` regenerates the demo hashes with fresh random flags, written only to
-`.secrets/demo-flags.txt` (git-ignored). Built-in sounds live in `public/sounds/` (faaah,
-abhi-maza, game-over); if one can't play, the site falls back to a synthesised sound.
+`.secrets/demo-flags.txt` (git-ignored). The pop-up art (lightning hammer, A.R.I.A.) is original SVG
+drawn in `src/components/Popups.tsx`; there are no sound files.
 
 Data model changes: bump `DATA_VERSION` in `src/core/seed.ts` and add a step to `src/core/migrate.ts`.
 

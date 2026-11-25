@@ -1,6 +1,5 @@
-import { BUILTIN_SOUNDS } from "../core/sounds";
 import type { View } from "../core/types";
-import { builtinSoundSrc, makeActions, type Actions, type Backend } from "./Backend";
+import { makeActions, type Actions, type Backend } from "./Backend";
 
 const TOKEN_KEY = "doomsday.token";
 const FAST_MS = 3000;
@@ -164,10 +163,9 @@ export class RemoteBackend implements Backend {
     return body.result;
   }
 
-  /** Uploaded sounds are served by GET /api/sound?id=… (cached; sounds aren't secret). */
-  soundSrc(ref: string): string | null {
-    if (ref.startsWith("builtin:")) return builtinSoundSrc(ref, BUILTIN_SOUNDS.find((b) => b.ref === ref)?.file);
-    if (ref.startsWith("upload:")) return `${this.base}/sound?id=${encodeURIComponent(ref.slice(7))}`;
+  /** Uploaded pop-up images are served by GET /api/media?id=… (cached; they aren't secret). */
+  mediaSrc(ref: string): string | null {
+    if (ref.startsWith("upload:")) return `${this.base}/media?id=${encodeURIComponent(ref.slice(7))}`;
     return null;
   }
 

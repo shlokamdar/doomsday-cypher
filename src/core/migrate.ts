@@ -1,7 +1,7 @@
 import { UserError } from "./errors";
 import { defaultHintCost } from "./logic";
 import { DATA_VERSION, defaultSettings } from "./seed";
-import { CUE_KEYS, defaultSoundboard } from "./sounds";
+import { CUE_KEYS, defaultPopups } from "./popups";
 import { DEFAULT_CHALLENGE_TYPES, THEME_IDS } from "./themes";
 import type { DB } from "./types";
 
@@ -13,6 +13,7 @@ import type { DB } from "./types";
  * v1 (previous release): challenges had `released: boolean`, hints were plain strings with no
  * cost, there were no attempt limits / hidden flag, and no hint unlocks or scoreboard freeze.
  * v2: no soundboard (meme sounds per moment), no per-challenge cues or Python workspace.
+ * v3: sounds per moment. v4 replaced them with image pop-ups (sounds and their cues are dropped).
  */
 export function migrate(input: any): DB {
   if (!input || typeof input !== "object") throw new UserError("Not a DOOMSDAY CYPHER database.");
@@ -41,8 +42,14 @@ export function migrate(input: any): DB {
   }
 
   if (from < 3) {
-    db.soundboard = defaultSoundboard();
     db.dataVersion = 3;
+  }
+  if (from < 4) {
+    // Sounds were removed: drop the old soundboard and every per-challenge sound cue.
+    delete db.soundboard;
+    db.popups = defaultPopups();
+    for (const c of db.challenges ?? []) delete c.cues;
+    db.dataVersion = 4;
   }
 
   // Fill defaults for anything missing (robust against partial backups).
@@ -55,11 +62,11 @@ export function migrate(input: any): DB {
   db.notifications = db.notifications ?? [];
   db.challengeTypes = db.challengeTypes?.length ? db.challengeTypes : DEFAULT_CHALLENGE_TYPES.map((t) => ({ ...t }));
   db.settings = { ...defaultSettings(), ...(db.settings ?? {}) };
-  const board = defaultSoundboard();
-  db.soundboard = db.soundboard ?? board;
-  db.soundboard.sounds = Array.isArray(db.soundboard.sounds) ? db.soundboard.sounds : [];
-  db.soundboard.cues = { ...board.cues, ...(db.soundboard.cues ?? {}) };
-  for (const k of CUE_KEYS) db.soundboard.cues[k] = db.soundboard.cues[k] ?? board.cues[k];
+  const board = defaultPopups();
+  db.popups = db.popups ?? board;
+  db.popups.images = Array.isArray(db.popups.images) ? db.popups.images : [];
+  db.popups.cues = { ...board.cues, ...(db.popups.cues ?? {}) };
+  for (const k of CUE_KEYS) db.popups.cues[k] = db.popups.cues[k] ?? board.cues[k];
   for (const c of db.challenges) {
     if (c.theme === "void") c.theme = "archive";
     if (c.theme === "chronos") c.theme = "machine";

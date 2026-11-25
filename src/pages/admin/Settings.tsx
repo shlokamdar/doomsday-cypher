@@ -134,7 +134,7 @@ export function AdminSettings() {
               if (
                 await confirm({
                   title: "Start fresh?",
-                  body: "This deletes every team, member, challenge, wave, announcement, submission and score, and resets the clock. Your admin login, the event settings, difficulty levels and soundboard stay as they are. Export a backup first if you might need it.",
+                  body: "This deletes every team, member, challenge, wave, announcement, submission and score, and resets the clock. Your admin login, the event settings, difficulty levels and pop-ups stay as they are. Export a backup first if you might need it.",
                   danger: true,
                   confirmLabel: "Delete and start fresh",
                 })

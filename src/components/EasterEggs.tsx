@@ -14,40 +14,6 @@ import { PortalRing, SovereignMask } from "./Art";
 const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
 let hinted = false;
 
-function soundOn() {
-  try {
-    return localStorage.getItem("doomsday.sound") !== "off";
-  } catch {
-    return true;
-  }
-}
-
-/** A short rising portal "whoosh" with a doom chord. */
-function whoosh() {
-  if (!soundOn()) return;
-  try {
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ac = new AC();
-    const t = ac.currentTime;
-    [0, 0.3, 0.6, 0.75, 0.9, 1.05].forEach((d, i) => {
-      const o = ac.createOscillator();
-      const g = ac.createGain();
-      o.type = "sawtooth";
-      o.frequency.setValueAtTime(i % 2 ? 98 : 73.4, t + d);
-      o.frequency.exponentialRampToValueAtTime(i % 2 ? 196 : 146.8, t + d + 0.2);
-      g.gain.setValueAtTime(0, t + d);
-      g.gain.linearRampToValueAtTime(0.18, t + d + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.24);
-      o.connect(g).connect(ac.destination);
-      o.start(t + d);
-      o.stop(t + d + 0.26);
-    });
-    setTimeout(() => void ac.close(), 2000);
-  } catch {
-    /* no audio */
-  }
-}
-
 const COLOURS = ["#2BD67B", "#E0408A", "#5AB0FF", "#F2B33D", "#9B7BFF", "#3DD6D0"];
 
 function Flyer({ i, reduce }: { i: number; reduce: boolean }) {
@@ -87,7 +53,6 @@ export function EasterEggs() {
       if (pos === KONAMI.length) {
         pos = 0;
         setFrenzy((n) => n + 1);
-        whoosh();
       }
     };
     let clicks = 0;
@@ -151,8 +116,7 @@ export function EasterEggs() {
         whileTap={{ scale: 0.9 }}
         onClick={() => {
           setFrenzy((n) => n + 1);
-          whoosh();
-        }}
+          }}
         data-testid="egg-portal"
       >
         <PortalRing size={56} sparks={3} />

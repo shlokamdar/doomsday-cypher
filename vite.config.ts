@@ -8,8 +8,8 @@ const CSP = [
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "connect-src 'self'",
-  // data: lets sounds uploaded in the browser-only demo play.
-  "media-src 'self' data: blob:",
+  // data: lets pop-up images uploaded in the browser-only demo show.
+  "img-src 'self' data: blob:",
   "object-src 'none'",
   "base-uri 'self'",
 ].join("; ");

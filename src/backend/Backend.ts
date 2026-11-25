@@ -8,7 +8,7 @@ import type {
   NotificationLevel,
   Release,
   Settings,
-  SoundMeta,
+  MediaMeta,
   SubmitResult,
   View,
 } from "../core/types";
@@ -64,9 +64,9 @@ export interface Actions {
   unfreezeScoreboard(): Promise<unknown>;
 
   updateCue(key: CueKey, cue: Cue): Promise<unknown>;
-  /** Stores the audio (a data: URL) and adds it to the soundboard. Handled by each backend. */
-  uploadSound(name: string, dataUrl: string): Promise<SoundMeta>;
-  deleteSound(id: string): Promise<unknown>;
+  /** Stores an image (a data: URL) and adds it to the Pop-ups board. Handled by each backend. */
+  uploadImage(name: string, dataUrl: string): Promise<MediaMeta>;
+  deleteImage(id: string): Promise<unknown>;
 
   exportBackup(): Promise<{ json: string }>;
   importBackup(json: string): Promise<unknown>;
@@ -114,8 +114,8 @@ export const ACTION_NAMES: (keyof Actions)[] = [
   "freezeScoreboard",
   "unfreezeScoreboard",
   "updateCue",
-  "uploadSound",
-  "deleteSound",
+  "uploadImage",
+  "deleteImage",
   "exportBackup",
   "importBackup",
   "startFresh",
@@ -128,18 +128,6 @@ export function makeActions(exec: (method: string, args: unknown[]) => Promise<u
   return out as unknown as Actions;
 }
 
-/** Where a built-in sound lives, relative to the site. */
-export function builtinSoundSrc(ref: string, file: string | undefined): string | null {
-  if (!file) return null;
-  let base = "/";
-  try {
-    base = import.meta.env.BASE_URL ?? "/";
-  } catch {
-    /* not built by Vite */
-  }
-  return `${base}${file}`;
-}
-
 export interface Backend {
   readonly mode: "local" | "remote";
   readonly actions: Actions;
@@ -150,8 +138,8 @@ export interface Backend {
   logout(): Promise<void>;
   /** Downloads a challenge file. Private files (/api/file) need the player's login. */
   downloadFile(url: string, name: string): Promise<void>;
-  /** A URL the browser can play for a sound reference ("builtin:…" or "upload:…"), or null. */
-  soundSrc(ref: string): string | null;
+  /** A URL the browser can show for an image reference ("upload:…"), or null ("none"). */
+  mediaSrc(ref: string): string | null;
   /** serverNow − Date.now(), so clocks agree with the server. */
   clockOffset(): number;
   online(): boolean;

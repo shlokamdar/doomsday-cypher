@@ -110,7 +110,7 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
     hintUnlocks,
     submissions,
     notifications: [...db.notifications].sort((a, b) => b.at - a.at).map((n) => ({ ...n })),
-    soundboard: structuredClone(db.soundboard),
+    popups: structuredClone(db.popups),
   };
   if (sessionInvalid) view.sessionInvalid = true;
   if (isAdmin) view.users = db.users.map((u) => publicUser(u, true));

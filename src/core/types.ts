@@ -3,28 +3,28 @@ export type ThemeId = "reality" | "signal" | "machine" | "archive";
 export type ChallengeStatus = "draft" | "scheduled" | "live" | "hidden" | "archived";
 export type NotificationLevel = "info" | "important";
 
-/** The moments that can play a meme sound and pop-up. */
+/** The moments that show a pop-up. */
 export type CueKey = "wrong" | "lastAttempt" | "outOfAttempts" | "correct";
 /**
- * What happens at one moment. `sound` is "none", "builtin:<name>" or "upload:<id>".
- * `text` is the big pop-up line (empty = the built-in line). `seconds` stops long clips early.
+ * What happens at one moment. `image` is "none" (animation only) or "upload:<id>" (a meme shown
+ * inside the pop-up). `text` is the big line (empty = the built-in line). `seconds` = time on screen.
  */
 export interface Cue {
-  sound: string;
+  image: string;
   text: string;
   seconds: number;
 }
-/** An admin-uploaded sound. The audio itself is stored separately and fetched on demand. */
-export interface SoundMeta {
+/** An admin-uploaded image. The bytes are stored separately and fetched on demand. */
+export interface MediaMeta {
   id: string;
   name: string;
   bytes: number;
   mime: string;
   addedAt: number;
 }
-export interface Soundboard {
+export interface PopupBoard {
   cues: Record<CueKey, Cue>;
-  sounds: SoundMeta[];
+  images: MediaMeta[];
 }
 export type ChallengeCues = Partial<Record<CueKey, Cue>>;
 /** In-browser Python workspace shown in the challenge window, with optional starter code. */
@@ -97,7 +97,7 @@ export interface Challenge {
   releaseAt: number | null;
   /** Set when Admin archives the challenge: out of play and off the scoreboard, but kept. */
   archivedAt?: number | null;
-  /** Meme sound/pop-up overrides for this challenge. Missing keys use the Soundboard defaults. */
+  /** Pop-up overrides for this challenge. Missing keys use the Pop-ups board defaults. */
   cues?: ChallengeCues;
   python?: PythonWorkspace;
   createdAt: number;
@@ -157,7 +157,7 @@ export interface DB {
   hintUnlocks: HintUnlock[];
   notifications: Notification[];
   settings: Settings;
-  soundboard: Soundboard;
+  popups: PopupBoard;
 }
 
 /* ---------------- View: what one viewer is allowed to see ---------------- */
@@ -248,7 +248,7 @@ export interface View {
   /** The viewer's own team's submissions (every submission for Admin). */
   submissions: ViewSubmission[];
   notifications: Notification[];
-  soundboard: Soundboard;
+  popups: PopupBoard;
   /** Admin only */
   users?: PublicUser[];
 }

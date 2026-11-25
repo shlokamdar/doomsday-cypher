@@ -298,11 +298,11 @@ describe("clock, squads, notifications, backups", () => {
     await w.admin.actions.importBackup(json);
   });
 
-  it("start fresh keeps the admin's login, settings, categories and soundboard", async () => {
+  it("start fresh keeps the admin's login, settings, categories and pop-ups", async () => {
     const w = await adminWorld();
     await joinSquad(w, w.admin);
     await w.admin.actions.updateSettings({ eventName: "Warm-up", durationMinutes: 90 });
-    await w.admin.actions.updateCue("wrong", { sound: "builtin:game-over", text: "NOPE", seconds: 3 });
+    await w.admin.actions.updateCue("wrong", { image: "none", text: "NOPE", seconds: 3 });
     await w.admin.actions.clockStart();
     await w.admin.actions.postSingle(input(), { mode: "now" });
     await w.admin.actions.startFresh();
@@ -314,7 +314,7 @@ describe("clock, squads, notifications, backups", () => {
     expect(v.settings.eventName).toBe("Warm-up");
     expect(v.settings.durationMinutes).toBe(90);
     expect(v.settings.startsAt).toBeNull();
-    expect(v.soundboard.cues.wrong.text).toBe("NOPE");
+    expect(v.popups.cues.wrong.text).toBe("NOPE");
     // still the same password
     await w.admin.logout();
     await w.admin.actions.login(null, "admin", ADMIN_PW2);
@@ -423,34 +423,35 @@ describe("EcoCypher parity", () => {
     expect(v.challenges.every((c) => c.waveId === null)).toBe(true);
   });
 
-  it("keeps per-challenge meme cues and the Python workspace, and validates sounds", async () => {
+  it("keeps per-challenge pop-ups and the Python workspace, and validates images", async () => {
     const w = await startedEvent();
     const { id } = await w.admin.actions.postSingle(
-      input({ cues: { wrong: { sound: "builtin:abhi-maza", text: "Try again", seconds: 2 } }, python: { enabled: true, starter: "print(1)" } }),
+      input({ cues: { wrong: { image: "none", text: "Try again", seconds: 2 } }, python: { enabled: true, starter: "print(1)" } }),
       { mode: "now" },
     );
     const { players } = await joinSquad(w, w.admin);
     const pc = players[0].getView()!.challenges.find((c) => c.id === id)!;
     expect(pc.cues?.wrong?.text).toBe("Try again");
     expect(pc.python).toEqual({ enabled: true, starter: "print(1)" });
-    await expect(w.admin.actions.postSingle(input({ cues: { wrong: { sound: "upload:snd-nope", text: "", seconds: 2 } } }), { mode: "now" })).rejects.toThrow(/soundboard/);
+    await expect(w.admin.actions.postSingle(input({ cues: { wrong: { image: "upload:img-nope", text: "", seconds: 2 } } }), { mode: "now" })).rejects.toThrow(/Pop-ups board/);
   });
 
-  it("stores uploaded sounds outside the event data and cleans up on delete", async () => {
+  it("stores uploaded pop-up images outside the event data and cleans up on delete", async () => {
     const w = await adminWorld();
-    const audio = "data:audio/mpeg;base64," + btoa("ID3" + "x".repeat(3000));
-    const meta = await w.admin.actions.uploadSound("airhorn.mp3", audio);
-    expect(meta.name).toBe("airhorn");
-    expect(w.admin.getView()!.soundboard.sounds).toHaveLength(1);
+    const img = "data:image/png;base64," + btoa("\x89PNG" + "x".repeat(3000));
+    const meta = await w.admin.actions.uploadImage("worthy.png", img);
+    expect(meta.name).toBe("worthy");
+    expect(w.admin.getView()!.popups.images).toHaveLength(1);
     expect(JSON.stringify(w.admin.getView())).not.toContain("eHh4eHh4");
-    expect(w.admin.soundSrc(`upload:${meta.id}`)).toBe(audio);
-    await w.admin.actions.updateCue("correct", { sound: `upload:${meta.id}`, text: "", seconds: 3 });
-    await w.admin.actions.deleteSound(meta.id);
+    expect(w.admin.mediaSrc(`upload:${meta.id}`)).toBe(img);
+    await w.admin.actions.updateCue("correct", { image: `upload:${meta.id}`, text: "", seconds: 3 });
+    await w.admin.actions.deleteImage(meta.id);
     const v = w.admin.getView()!;
-    expect(v.soundboard.sounds).toHaveLength(0);
-    expect(v.soundboard.cues.correct.sound).toBe("builtin:seal");
-    expect(w.admin.soundSrc(`upload:${meta.id}`)).toBeNull();
-    await expect(w.admin.actions.uploadSound("x.txt", "data:text/plain;base64,aGk=")).rejects.toThrow(/audio/);
+    expect(v.popups.images).toHaveLength(0);
+    expect(v.popups.cues.correct.image).toBe("none");
+    expect(w.admin.mediaSrc(`upload:${meta.id}`)).toBeNull();
+    await expect(w.admin.actions.uploadImage("x.svg", "data:image/svg+xml;base64,PHN2Zy8+")).rejects.toThrow(/supported image/);
+    await expect(w.admin.actions.uploadImage("x.mp3", "data:audio/mpeg;base64,SUQz")).rejects.toThrow(/supported image/);
   });
 
   it("never sends other members' usernames to players", async () => {
@@ -470,14 +471,18 @@ describe("EcoCypher parity", () => {
     expect(p.getView()!.me?.displayName).toBe("Cy Three");
   });
 
-  it("upgrades version 2 data with a default soundboard", async () => {
+  it("upgrades older data: drops sounds and sound cues, adds default pop-ups", async () => {
     const db = await freshDb(ADMIN_PW);
     const old = JSON.parse(JSON.stringify(db));
-    delete old.soundboard;
-    old.dataVersion = 2;
-    const m = migrate(old);
+    delete old.popups;
+    old.soundboard = { cues: { wrong: { sound: "builtin:faaah", text: "", seconds: 4 } }, sounds: [] };
+    old.challenges = [{ id: "c1", title: "t", typeId: "t-recruit", theme: "signal", points: 1, cues: { wrong: { sound: "builtin:faaah", text: "", seconds: 4 } } }];
+    old.dataVersion = 3;
+    const m = migrate(old) as unknown as Record<string, unknown> & typeof db;
     expect(m.dataVersion).toBe(DATA_VERSION);
-    expect(m.soundboard.cues.lastAttempt.sound).toBe("builtin:abhi-maza");
+    expect(m.soundboard).toBeUndefined();
+    expect(m.popups.cues.lastAttempt.image).toBe("none");
+    expect(m.challenges[0].cues).toBeUndefined();
   });
 });
 

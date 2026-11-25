@@ -92,16 +92,9 @@ export const Icon = {
       <path d="M10 20a2 2 0 0 0 4 0" />
     </svg>
   ),
-  Sound: (p: P) => (
+  Bolt: (p: P) => (
     <svg {...base(p.size ?? 18, p)}>
-      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
-      <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
-    </svg>
-  ),
-  Mute: (p: P) => (
-    <svg {...base(p.size ?? 18, p)}>
-      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
-      <path d="M16 9.5l5 5M21 9.5l-5 5" />
+      <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
     </svg>
   ),
   Up: (p: P) => (

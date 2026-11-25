@@ -1,17 +1,16 @@
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Emblem } from "../components/Art";
-import { playRef, preloadSound } from "../components/audio";
 import { EasterEggs } from "../components/EasterEggs";
 import { clockTime, CountUp, DoomsdayClock, Modal, ThemeChip, TypeChip } from "../components/Bits";
 import { Icon, ThemeIcon } from "../components/Icons";
 import { LatestTransmission, Page } from "../components/Layout";
 import { attemptInfo, clockPhase, NEW_BADGE_MS, teamColor } from "../core/logic";
-import { cueFor, CUE_KEYS } from "../core/sounds";
+import { cueFor, CUE_KEYS } from "../core/popups";
 import { themeMeta, THEMES } from "../core/themes";
 import type { CueKey, ThemeId, ViewChallenge } from "../core/types";
 import { PythonWorkspace } from "../python/PythonWorkspace";
-import { useBackend, useNow, useSoundSetting, useStandings } from "../hooks/store";
+import { useBackend, useNow, useStandings } from "../hooks/store";
 import { useRun, useUi } from "../hooks/ui";
 
 export function BreachesPage() {
@@ -209,18 +208,20 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
   const { run, busy } = useRun();
   const now = useNow(1000);
   const [flag, setFlag] = useState("");
-  const [sound, setSound] = useSoundSetting();
   const phase = clockPhase(view.settings, now);
   const nameOf = (id?: string) => view.teams.flatMap((t) => t.members).find((m) => m.id === id)?.displayName ?? "A squadmate";
-  // Load this challenge's meme sounds as soon as it opens, so they play without delay.
+  // Load this challenge's pop-up images as soon as it opens, so they show without delay.
   useEffect(() => {
-    if (c) for (const k of CUE_KEYS) preloadSound(backend.soundSrc(cueFor(view.soundboard, c.cues, k).sound));
+    if (!c) return;
+    for (const k of CUE_KEYS) {
+      const src = backend.mediaSrc(cueFor(view.popups, c.cues, k).image);
+      if (src) new Image().src = src;
+    }
   }, [c?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  /** Plays the sound for a moment (this challenge's own, else the Soundboard default) and returns its cue. */
-  const fire = (key: CueKey) => {
-    const cue = cueFor(backend.getView()?.soundboard ?? view.soundboard, c?.cues, key);
-    playRef(cue.sound, backend.soundSrc(cue.sound), cue.seconds);
-    return cue;
+  /** The pop-up settings for a moment (this challenge's own, else the Pop-ups board default). */
+  const popup = (key: CueKey) => {
+    const cue = cueFor(backend.getView()?.popups ?? view.popups, c?.cues, key);
+    return { text: cue.text, image: backend.mediaSrc(cue.image), seconds: cue.seconds };
   };
 
   if (!c) return <Modal open={false} onClose={onClose}>{null}</Modal>;
@@ -249,11 +250,11 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
     if (!r) return;
     setFlag("");
     if (r.alreadySolved) toast("info", "Your team already solved this challenge.");
-    else if (r.correct) fireSeal(r.title, r.points, fire("correct").text);
+    else if (r.correct) fireSeal(r.title, r.points, popup("correct"));
     else {
       // Which moment is it? attemptsLeft comes from the server's count after this guess.
       const mood: CueKey = r.attemptsLeft === 0 ? "outOfAttempts" : r.attemptsLeft === 1 ? "lastAttempt" : "wrong";
-      fireWrong(mood, fire(mood).text);
+      fireWrong(mood, popup(mood));
     }
   };
 
@@ -390,9 +391,6 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
           </form>
           </>
         )}
-        <button className="mt-4 flex items-center gap-2 text-xs uppercase tracking-wider text-steel/60 hover:text-white" onClick={() => setSound(!sound)} aria-pressed={sound}>
-          {sound ? <Icon.Sound size={16} /> : <Icon.Mute size={16} />} Sound {sound ? "on" : "off"}
-        </button>
       </div>
     </Modal>
   );

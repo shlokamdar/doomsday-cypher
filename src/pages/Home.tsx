@@ -310,6 +310,13 @@ export function HomePage() {
                   <>Hints cost points once, for the whole team. Some challenges have limited attempts.</>,
                   <>Max {s.submissionsPerMinute} flag attempts per minute per challenge for each team.</>,
                   <>No attacking the platform, other teams, or the organisers' infrastructure.</>,
+                  <>
+                    New here? Read the{" "}
+                    <Link to="/faq" className="font-semibold text-reactor underline underline-offset-4">
+                      FAQ &amp; guidelines
+                    </Link>
+                    , with a starter toolkit for every category.
+                  </>,
                 ].map((li, i) => (
                   <li key={i} className="flex gap-3">
                     <span className="mt-2 h-1.5 w-1.5 shrink-0 rotate-45 bg-reactor" />

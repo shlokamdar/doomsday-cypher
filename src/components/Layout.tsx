@@ -83,6 +83,7 @@ export function Header() {
     if (me?.role === "player") l.push({ to: "/challenges", label: "Challenges" });
     l.push({ to: "/scoreboard", label: "Scoreboard" });
     l.push({ to: "/announcements", label: "Announcements", badge: unread });
+    l.push({ to: "/faq", label: "FAQ" });
     if (me?.role === "admin") l.push({ to: "/admin", label: "Admin" });
     return l;
   }, [me, unread]);

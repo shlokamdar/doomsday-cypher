@@ -10,6 +10,7 @@ import { BackendProvider, useBackend } from "./hooks/store";
 import { UiProvider } from "./hooks/ui";
 import { BreachesPage } from "./pages/Breaches";
 import { ChangePasswordPage } from "./pages/ChangePassword";
+import { FaqPage } from "./pages/Faq";
 import { HomePage } from "./pages/Home";
 import { LoginPage } from "./pages/Login";
 import { TransmissionsPage } from "./pages/Transmissions";
@@ -90,6 +91,7 @@ function Shell() {
                 <Route path="/challenges" element={<RequirePlayer><BreachesPage /></RequirePlayer>} />
                 <Route path="/scoreboard" element={<WarTablePage />} />
                 <Route path="/announcements" element={<TransmissionsPage />} />
+                <Route path="/faq" element={<FaqPage />} />
                 <Route
                   path="/admin/*"
                   element={

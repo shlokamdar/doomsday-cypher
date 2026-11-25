@@ -1175,6 +1175,61 @@ var METHODS = {
       findChallenge(db, id).archivedAt = null;
     }
   },
+  /**
+   * Applies one action to many challenges in a single save:
+   * release | schedule (needs `at`) | unpublish | archive | restore | delete.
+   * Archived challenges are skipped by release/schedule/unpublish. A bulk release sends one announcement.
+   */
+  bulkChallenges: {
+    auth: "admin",
+    fn({ db, now }, actionRaw, idsRaw, atRaw) {
+      const ACTIONS = ["release", "schedule", "unpublish", "archive", "restore", "delete"];
+      const action = ACTIONS.find((a) => a === actionRaw);
+      if (!action) throw new UserError("Unknown bulk action.");
+      if (!Array.isArray(idsRaw) || !idsRaw.length) throw new UserError("Select at least one challenge.");
+      if (idsRaw.length > 500) throw new UserError("Too many challenges at once.");
+      const ids = [...new Set(idsRaw)];
+      const list = ids.map((id) => db.challenges.find((c) => c.id === id));
+      if (list.some((c) => !c)) throw new UserError("Some of those challenges no longer exist. Refresh and try again.", 404);
+      const cs = list;
+      const at = action === "schedule" ? time(atRaw, "Release time") : 0;
+      if (action === "schedule" && at <= now) throw new UserError("Scheduled time must be in the future.");
+      let changed = 0;
+      let skipped = 0;
+      for (const c of cs) {
+        if (["release", "schedule", "unpublish"].includes(action) && c.archivedAt) {
+          skipped++;
+          continue;
+        }
+        if (action === "release") {
+          c.releaseAt = now;
+          c.hidden = false;
+        } else if (action === "schedule") {
+          c.releaseAt = at;
+          c.hidden = false;
+        } else if (action === "unpublish") c.releaseAt = null;
+        else if (action === "archive") {
+          if (!c.archivedAt) c.archivedAt = now;
+        } else if (action === "restore") c.archivedAt = null;
+        else if (action === "delete") {
+          db.challenges = db.challenges.filter((x) => x.id !== c.id);
+          db.submissions = db.submissions.filter((x) => x.challengeId !== c.id);
+          db.hintUnlocks = db.hintUnlocks.filter((x) => x.challengeId !== c.id);
+        }
+        changed++;
+      }
+      if (action === "delete") {
+        const used = new Set(db.challenges.map((c) => c.waveId).filter(Boolean));
+        db.waves = db.waves.filter((w) => used.has(w.id));
+      }
+      if (action === "release" && changed) {
+        const released = cs.filter((c) => !c.archivedAt);
+        if (released.length === 1) notify(db, now, `New challenge: ${released[0].title}`, `A ${released[0].points}-point challenge has opened.`);
+        else notify(db, now, `${released.length} new challenges are live`, released.map((c) => c.title).join(", "), "important");
+      }
+      return { changed, skipped };
+    }
+  },
   deleteChallenge: {
     auth: "admin",
     fn({ db }, id) {

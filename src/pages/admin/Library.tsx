@@ -20,17 +20,36 @@ export function Library() {
   const { view, actions } = useBackend();
   const [filter, setFilter] = useState<ChallengeStatus | "all">("all");
   const [editing, setEditing] = useState<ChallengeInput | null>(null);
-  const [scheduling, setScheduling] = useState<{ id: string; local: string } | null>(null);
-  const [picked, setPicked] = useState<string[]>([]);
+  const [scheduling, setScheduling] = useState<{ ids: string[]; local: string } | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
   const { run, busy } = useRun();
   const { confirm } = useUi();
   const now = useNow(5000);
   const nextWave = view.waves.reduce((m, w) => Math.max(m, w.number), 0) + 1;
-  const togglePick = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 5 ? p : [...p, id]));
+  const toggle = (id: string) => setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const toggleMany = (ids: string[], on: boolean) => setSelected((p) => (on ? [...new Set([...p, ...ids])] : p.filter((x) => !ids.includes(x))));
 
   const active = view.challenges.filter((c) => c.status !== "archived");
   const archivedCount = view.challenges.length - active.length;
   const list = active.filter((c) => filter === "all" || c.status === filter);
+  // Only act on selected challenges that are still on screen.
+  const sel = selected.filter((id) => list.some((c) => c.id === id));
+  const selChallenges = list.filter((c) => sel.includes(c.id));
+  const canMakeWave = sel.length === 5 && selChallenges.every((c) => !c.waveId);
+  const bulk = async (action: "release" | "unpublish" | "archive" | "delete") => {
+    const n = sel.length;
+    const what = `${n} challenge${n === 1 ? "" : "s"}`;
+    const ask = {
+      release: { title: `Release ${what} now?`, body: "They go live straight away and one announcement is sent.", confirmLabel: "Release" },
+      unpublish: { title: `Unpublish ${what}?`, body: "They go back to drafts. Players stop seeing them; solves are kept.", confirmLabel: "Unpublish" },
+      archive: { title: `Archive ${what}?`, body: "Players stop seeing them and their points come off the scoreboard. You can restore them from Archive.", confirmLabel: "Archive" },
+      delete: { title: `Delete ${what} for good?`, body: "Their solves and hint history are removed. This can't be undone. (Archive keeps them instead.)", confirmLabel: "Delete", danger: true },
+    }[action];
+    if (!(await confirm(ask))) return;
+    const done = { release: "released", unpublish: "unpublished", archive: "archived", delete: "deleted" }[action];
+    const r = await run(() => actions.bulkChallenges(action, sel), (x) => `${x.changed} challenge${x.changed === 1 ? "" : "s"} ${done}.${x.skipped ? ` ${x.skipped} skipped.` : ""}`);
+    if (r) setSelected([]);
+  };
   const groups = [
     ...[...view.waves].sort((a, b) => b.number - a.number).map((w) => ({ key: w.id, title: `Wave ${w.number}`, waveId: w.id, items: list.filter((c) => c.waveId === w.id) })),
     { key: "singles", title: "Single challenges", waveId: null as string | null, items: list.filter((c) => !c.waveId) },
@@ -69,7 +88,7 @@ export function Library() {
       )}
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter by status">
         {(["all", "live", "scheduled", "draft", "hidden"] as const).map((f) => (
-          <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)} className={`rounded-full border px-3 py-1 text-sm capitalize ${filter === f ? "border-reactor bg-reactor/15 text-reactor" : "border-white/10 text-steel"}`}>
+          <button key={f} aria-pressed={filter === f} onClick={() => { setFilter(f); setSelected([]); }} className={`rounded-full border px-3 py-1 text-sm capitalize ${filter === f ? "border-reactor bg-reactor/15 text-reactor" : "border-white/10 text-steel"}`}>
             {f} ({f === "all" ? active.length : active.filter((c) => c.status === f).length})
           </button>
         ))}
@@ -84,11 +103,74 @@ export function Library() {
           .
         </p>
       )}
+      {list.length > 0 && (
+        <div className="sticky top-2 z-20 mb-4 flex flex-wrap items-center gap-2 rounded-md border border-white/10 bg-gunmetal/95 px-4 py-3 text-sm text-steel shadow-lg backdrop-blur" data-testid="bulk-bar">
+          <label className="mr-1 flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-5 w-5 cursor-pointer accent-reactor"
+              aria-label="Select all shown"
+              checked={sel.length === list.length}
+              ref={(el) => {
+                if (el) el.indeterminate = sel.length > 0 && sel.length < list.length;
+              }}
+              onChange={(e) => setSelected(e.target.checked ? list.map((c) => c.id) : [])}
+            />
+            <span>
+              <strong className="tabular-nums text-white">{sel.length}</strong> of {list.length} selected
+            </span>
+          </label>
+          {sel.length > 0 ? (
+            <>
+              <button className="btn-primary btn-sm" disabled={busy} onClick={() => bulk("release")}>
+                Release now
+              </button>
+              <button className="btn-ghost btn-sm" disabled={busy} onClick={() => setScheduling({ ids: sel, local: localInput(Date.now() + 30 * 60_000) })}>
+                Schedule
+              </button>
+              <button className="btn-ghost btn-sm" disabled={busy} onClick={() => bulk("unpublish")}>
+                Unpublish
+              </button>
+              <button className="btn-ghost btn-sm" disabled={busy} onClick={() => bulk("archive")}>
+                Archive
+              </button>
+              <button className="btn-ghost btn-sm text-breach" disabled={busy} onClick={() => bulk("delete")}>
+                Delete
+              </button>
+              <button
+                className="btn-gold btn-sm"
+                disabled={busy || !canMakeWave}
+                title={canMakeWave ? "" : "Select exactly 5 single challenges to make a wave"}
+                onClick={async () => {
+                  const r = await run(() => actions.groupIntoWave(sel), `Wave ${nextWave} created. Its challenges keep their own release status.`);
+                  if (r) setSelected([]);
+                }}
+              >
+                Make Wave {nextWave}
+              </button>
+              <button className="btn-ghost btn-sm ml-auto" onClick={() => setSelected([])}>
+                Clear
+              </button>
+            </>
+          ) : (
+            <span className="text-steel/60">Tick challenges to release, schedule, unpublish, archive or delete several at once. Pick exactly 5 singles to make a wave.</span>
+          )}
+        </div>
+      )}
       {groups.length === 0 && <p className="text-steel/60">Nothing here yet.</p>}
       {groups.map((g) => (
         <section key={g.key} className="mb-8">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="h-display text-2xl">{g.title}</h2>
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                className="h-5 w-5 cursor-pointer accent-reactor"
+                aria-label={`Select all in ${g.title}`}
+                checked={g.items.every((c) => sel.includes(c.id))}
+                onChange={(e) => toggleMany(g.items.map((c) => c.id), e.target.checked)}
+              />
+              <h2 className="h-display text-2xl">{g.title}</h2>
+            </label>
             {g.waveId && (
               <span className="flex flex-wrap gap-2">
                 {view.challenges.some((c) => c.waveId === g.waveId && c.status !== "live") && (
@@ -115,44 +197,18 @@ export function Library() {
               </span>
             )}
           </div>
-          {!g.waveId && (
-            <div className="sticky top-2 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-white/10 bg-gunmetal/95 px-4 py-3 text-sm text-steel backdrop-blur">
-              <span className="flex-1">
-                Tick 5 single challenges to group them into <strong className="text-white">Wave {nextWave}</strong>.{" "}
-                <strong className="tabular-nums text-gold">{picked.length} of 5</strong> picked.
-              </span>
-              {picked.length > 0 && (
-                <button className="btn-ghost btn-sm" onClick={() => setPicked([])}>
-                  Clear
-                </button>
-              )}
-              <button
-                className="btn-primary btn-sm"
-                disabled={busy || picked.length !== 5}
-                onClick={async () => {
-                  const r = await run(() => actions.groupIntoWave(picked), `Wave ${nextWave} created. Its challenges keep their own release status.`);
-                  if (r) setPicked([]);
-                }}
-              >
-                Make Wave {nextWave}
-              </button>
-            </div>
-          )}
           <ul className="grid gap-2">
             {g.items.map((c) => {
               const n = counts(c.id);
               return (
-                <li key={c.id} className={`plate flex flex-wrap items-center gap-3 p-3 ${picked.includes(c.id) ? "ring-2 ring-reactor" : ""}`} data-testid="library-row">
-                  {!c.waveId && (
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 shrink-0 cursor-pointer accent-reactor"
-                      aria-label={`Pick ${c.title} for Wave ${nextWave}`}
-                      checked={picked.includes(c.id)}
-                      disabled={!picked.includes(c.id) && picked.length >= 5}
-                      onChange={() => togglePick(c.id)}
-                    />
-                  )}
+                <li key={c.id} className={`plate flex flex-wrap items-center gap-3 p-3 ${sel.includes(c.id) ? "ring-2 ring-reactor" : ""}`} data-testid="library-row">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 shrink-0 cursor-pointer accent-reactor"
+                    aria-label={`Select ${c.title}`}
+                    checked={sel.includes(c.id)}
+                    onChange={() => toggle(c.id)}
+                  />
                   <div className="min-w-[200px] flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`chip capitalize ${STATUS_STYLE[c.status]}`}>{c.status}</span>
@@ -177,7 +233,7 @@ export function Library() {
                         Release now
                       </button>
                     )}
-                    <button className="btn-ghost btn-sm" onClick={() => setScheduling({ id: c.id, local: localInput(Math.max(Date.now(), c.releaseAt ?? 0) + 30 * 60_000) })}>
+                    <button className="btn-ghost btn-sm" onClick={() => setScheduling({ ids: [c.id], local: localInput(Math.max(Date.now(), c.releaseAt ?? 0) + 30 * 60_000) })}>
                       Schedule
                     </button>
                     {c.status !== "draft" && (
@@ -250,7 +306,7 @@ export function Library() {
         )}
       </Modal>
 
-      <Modal open={!!scheduling} onClose={() => setScheduling(null)} title={<h2 className="h-display text-3xl">Schedule release</h2>}>
+      <Modal open={!!scheduling} onClose={() => setScheduling(null)} title={<h2 className="h-display text-3xl">{scheduling && scheduling.ids.length > 1 ? `Schedule ${scheduling.ids.length} challenges` : "Schedule release"}</h2>}>
         {scheduling && (
           <div className="grid gap-4">
             <input type="datetime-local" aria-label="Release time" className="input" value={scheduling.local} onChange={(e) => setScheduling({ ...scheduling, local: e.target.value })} />
@@ -262,7 +318,12 @@ export function Library() {
                 className="btn-primary"
                 disabled={busy}
                 onClick={async () => {
-                  const r = await run(() => actions.schedule(scheduling.id, new Date(scheduling.local).getTime()), "Release scheduled.");
+                  const at = new Date(scheduling.local).getTime();
+                  const r =
+                    scheduling.ids.length === 1
+                      ? await run(() => actions.schedule(scheduling.ids[0], at), "Release scheduled.")
+                      : await run(() => actions.bulkChallenges("schedule", scheduling.ids, at), (x) => `${x.changed} challenges scheduled.${x.skipped ? ` ${x.skipped} skipped.` : ""}`);
+                  if (r !== undefined && scheduling.ids.length > 1) setSelected([]);
                   if (r !== undefined) setScheduling(null);
                 }}
               >

@@ -36,6 +36,11 @@ export interface Actions {
   releaseWave(waveId: string): Promise<unknown>;
   deleteChallenge(id: string): Promise<unknown>;
   archiveChallenge(id: string): Promise<unknown>;
+  bulkChallenges(
+    action: "release" | "schedule" | "unpublish" | "archive" | "restore" | "delete",
+    ids: string[],
+    at?: number,
+  ): Promise<{ changed: number; skipped: number }>;
   restoreChallenge(id: string): Promise<unknown>;
   grantAttempts(id: string, n?: number): Promise<unknown>;
   groupIntoWave(ids: string[]): Promise<{ waveId: string; number: number }>;
@@ -89,6 +94,7 @@ export const ACTION_NAMES: (keyof Actions)[] = [
   "releaseWave",
   "deleteChallenge",
   "archiveChallenge",
+  "bulkChallenges",
   "restoreChallenge",
   "grantAttempts",
   "groupIntoWave",

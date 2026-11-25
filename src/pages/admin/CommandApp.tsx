@@ -25,7 +25,7 @@ const NAV = [
 
 export default function CommandApp() {
   return (
-    <div className="mx-auto grid w-full max-w-[1400px] gap-0 md:grid-cols-[230px_1fr]">
+    <div className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-0 md:grid-cols-[230px_minmax(0,1fr)]">
       <aside className="border-b border-white/5 bg-[#0B0E13] md:min-h-[calc(100vh-64px)] md:border-b-0 md:border-r no-print">
         <div className="px-4 pb-2 pt-5">
           <div className="text-[10px] font-semibold uppercase tracking-[0.35em] text-steel/50">Admin</div>

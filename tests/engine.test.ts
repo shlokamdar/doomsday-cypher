@@ -523,3 +523,50 @@ describe("archive", () => {
     expect(db.challenges[0].archivedAt).toBeNull();
   });
 });
+
+describe("bulk challenge actions", () => {
+  it("releases, schedules, unpublishes, archives, restores and deletes many at once", async () => {
+    const w = await startedEvent();
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i++) ids.push((await w.admin.actions.postSingle(input({ title: `B${i}` }), { mode: "draft" })).id);
+    const st = () => Object.fromEntries(w.admin.getView()!.challenges.map((c) => [c.id, c.status]));
+    const notes = () => w.admin.getView()!.notifications.length;
+
+    const before = notes();
+    w.clock.t += 1000;
+    expect(await w.admin.actions.bulkChallenges("release", ids.slice(0, 3))).toEqual({ changed: 3, skipped: 0 });
+    expect(ids.slice(0, 3).map((id) => st()[id])).toEqual(["live", "live", "live"]);
+    expect(notes()).toBe(before + 1); // one announcement, not three
+    expect(w.admin.getView()!.notifications[0].title).toBe("3 new challenges are live");
+
+    await w.admin.actions.bulkChallenges("schedule", [ids[2], ids[3]], w.clock.t + 10 * MINUTE);
+    expect([st()[ids[2]], st()[ids[3]]]).toEqual(["scheduled", "scheduled"]);
+    await expect(w.admin.actions.bulkChallenges("schedule", [ids[0]], w.clock.t - 1)).rejects.toThrow(/future/);
+
+    await w.admin.actions.bulkChallenges("unpublish", [ids[0], ids[1]]);
+    expect([st()[ids[0]], st()[ids[1]]]).toEqual(["draft", "draft"]);
+
+    await w.admin.actions.bulkChallenges("archive", ids);
+    expect(ids.every((id) => st()[id] === "archived")).toBe(true);
+    // archived ones are skipped by release, not silently changed
+    expect(await w.admin.actions.bulkChallenges("release", [ids[0]])).toEqual({ changed: 0, skipped: 1 });
+
+    await w.admin.actions.bulkChallenges("restore", [ids[0], ids[3]]);
+    expect([st()[ids[0]], st()[ids[3]]]).toEqual(["draft", "scheduled"]);
+
+    await w.admin.actions.bulkChallenges("delete", [ids[1], ids[2]]);
+    expect(w.admin.getView()!.challenges.map((c) => c.id).sort()).toEqual([ids[0], ids[3]].sort());
+  });
+
+  it("rejects bad input and players", async () => {
+    const w = await startedEvent();
+    const { id } = await w.admin.actions.postSingle(input(), { mode: "draft" });
+    await expect(w.admin.actions.bulkChallenges("release", [])).rejects.toThrow(/at least one/);
+    await expect(w.admin.actions.bulkChallenges("release", [id, "nope"])).rejects.toThrow(/no longer exist/);
+    // nothing was changed by the failed call
+    expect(w.admin.getView()!.challenges.find((c) => c.id === id)!.status).toBe("draft");
+    await expect(w.admin.actions.bulkChallenges("explode" as never, [id])).rejects.toThrow(/Unknown bulk action/);
+    const { players } = await joinSquad(w, w.admin);
+    await expect(players[0].actions.bulkChallenges("delete", [id])).rejects.toThrow(/Admin only/);
+  });
+});

@@ -1,7 +1,8 @@
 /**
  * Pop-ups shown at four moments (wrong flag, last attempt, out of attempts, correct flag).
- * The animation is built in; Admin can change the big line of text, how long it stays up, and
- * add an uploaded meme image. Shared by the server and the browser. There are no sounds.
+ * Each pop-up plays one superpower effect, picked at random every time (never the same one
+ * twice in a row) unless Admin locks one. Admin can also change the big line of text, how long
+ * it stays up, and add an uploaded meme image. Shared by the server and the browser. No sounds.
  */
 import { UserError } from "./errors";
 import { newId } from "./crypto";
@@ -12,37 +13,78 @@ export const CUE_LABELS: Record<CueKey, { title: string; when: string; defaultTe
     title: "Wrong flag",
     when: "Any wrong guess (when more than one attempt is left, or attempts are unlimited)",
     defaultText: "WRONG FLAG, AGENT",
-    art: "A.R.I.A., the team's holographic assistant, pops up and roasts the guess.",
+    art: "A random superpower stops the flag: A.R.I.A. roasts it, a force shield blocks it, a web traps it, a portal swallows it, the screen cracks or it turns to dust.",
   },
   lastAttempt: {
     title: "Last attempt left",
     when: "A wrong guess that leaves the team exactly one attempt",
     defaultText: "ONE ATTEMPT LEFT",
-    art: "A.R.I.A. in amber alert mode, flashing a warning.",
+    art: "A random wrong-flag superpower, in amber alert colours with a final-attempt warning.",
   },
   outOfAttempts: {
     title: "Out of attempts",
     when: "The wrong guess that uses the team's final attempt",
     defaultText: "LOCKDOWN",
-    art: "A.R.I.A. in red lockdown mode as the challenge seals shut.",
+    art: "A random wrong-flag superpower, in red lockdown colours as the challenge seals shut.",
   },
   correct: {
     title: "Correct flag",
     when: "The team captures the flag",
     defaultText: "WORTHY!",
-    art: "A lightning hammer slams down with thunder bolts and a screen flash.",
+    art: "A random superpower celebrates: lightning hammer, force shield, web catch, energy blast, ground smash, portal or bullseye arrow.",
   },
 };
 export const CUE_KEYS = Object.keys(CUE_LABELS) as CueKey[];
+
+/* ---------------- Superpower effects ---------------- */
+
+export interface FxInfo {
+  id: string;
+  name: string;
+}
+/** Effects for a correct flag. */
+export const CORRECT_FX: FxInfo[] = [
+  { id: "thunder", name: "Lightning hammer" },
+  { id: "shield", name: "Force shield" },
+  { id: "web", name: "Web catch" },
+  { id: "blast", name: "Energy blast" },
+  { id: "smash", name: "Ground smash" },
+  { id: "portal", name: "Portal" },
+  { id: "arrow", name: "Bullseye arrow" },
+];
+/** Effects for a wrong flag (also used, recoloured, for last attempt and lockdown). */
+export const WRONG_FX: FxInfo[] = [
+  { id: "aria", name: "A.R.I.A. assistant" },
+  { id: "shield", name: "Force shield block" },
+  { id: "web", name: "Stuck in a web" },
+  { id: "portal", name: "Swallowed by a portal" },
+  { id: "smash", name: "Screen crack" },
+  { id: "dust", name: "Turned to dust" },
+];
+export const fxListFor = (key: CueKey) => (key === "correct" ? CORRECT_FX : WRONG_FX);
+const validFx = (key: CueKey, fx: unknown) => typeof fx === "string" && (fx === "random" || fxListFor(key).some((f) => f.id === fx));
+
+/**
+ * Turns a cue's effect setting into the effect to play now. "random" picks with the browser's
+ * secure random source and never repeats `last`, so players can't predict the next one.
+ */
+export function pickFx(key: CueKey, fx: string | undefined, last?: string): string {
+  const list = fxListFor(key).map((f) => f.id);
+  if (fx && fx !== "random" && list.includes(fx)) return fx;
+  const pool = list.length > 1 && last ? list.filter((id) => id !== last) : list;
+  const r = new Uint32Array(1);
+  globalThis.crypto.getRandomValues(r);
+  return pool[r[0] % pool.length];
+}
 
 /** `image` is "none" (animation only) or "upload:<id>" (a meme shown inside the pop-up). */
 export function defaultPopups(): PopupBoard {
   return {
     cues: {
-      wrong: { image: "none", text: "", seconds: 3 },
-      lastAttempt: { image: "none", text: "", seconds: 4 },
-      outOfAttempts: { image: "none", text: "", seconds: 4 },
-      correct: { image: "none", text: "", seconds: 4 },
+      wrong: { image: "none", text: "", seconds: 3, fx: "random" },
+      lastAttempt: { image: "none", text: "", seconds: 4, fx: "random" },
+      outOfAttempts: { image: "none", text: "", seconds: 4, fx: "random" },
+      correct: { image: "none", text: "", seconds: 4, fx: "random" },
     },
     images: [],
   };
@@ -75,12 +117,13 @@ function knownImage(ref: string, images: MediaMeta[]) {
 }
 
 /** Cleans one cue. Throws if it points at an image that isn't on the board. */
-export function checkCue(cue: unknown, images: MediaMeta[]): Cue {
+export function checkCue(cue: unknown, images: MediaMeta[], key: CueKey = "wrong"): Cue {
   const c = (cue ?? {}) as Partial<Cue>;
   const image = String(c.image ?? "none");
   if (!knownImage(image, images)) throw new UserError("That image isn't on the Pop-ups board any more.");
   const seconds = Math.min(10, Math.max(1, Math.round(Number(c.seconds) || 3)));
-  return { image, text: String(c.text ?? "").trim().slice(0, 40), seconds };
+  const fx = validFx(key, c.fx) ? String(c.fx) : "random";
+  return { image, text: String(c.text ?? "").trim().slice(0, 40), seconds, fx };
 }
 
 /** Cleans a challenge's cue overrides. Returns undefined when there are none. */
@@ -89,7 +132,7 @@ export function checkCues(cues: unknown, images: MediaMeta[]): ChallengeCues | u
   const out: ChallengeCues = {};
   for (const k of CUE_KEYS) {
     const c = (cues as Record<string, unknown>)[k];
-    if (c) out[k] = checkCue(c, images);
+    if (c) out[k] = checkCue(c, images, k);
   }
   return Object.keys(out).length ? out : undefined;
 }

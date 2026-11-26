@@ -13,6 +13,8 @@ export interface Cue {
   image: string;
   text: string;
   seconds: number;
+  /** "random" (a different superpower effect each time) or one effect id. Older data has none = random. */
+  fx?: string;
 }
 /** An admin-uploaded image. The bytes are stored separately and fetched on demand. */
 export interface MediaMeta {

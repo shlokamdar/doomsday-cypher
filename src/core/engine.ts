@@ -793,7 +793,7 @@ export const METHODS: Record<string, MethodSpec> = {
     auth: "admin",
     fn({ db }, key: unknown, cue: unknown) {
       if (!CUE_KEYS.includes(key as CueKey)) throw new UserError("Unknown moment.");
-      db.popups.cues[key as CueKey] = checkCue(cue, db.popups.images);
+      db.popups.cues[key as CueKey] = checkCue(cue, db.popups.images, key as CueKey);
     },
   },
   /**

@@ -221,7 +221,7 @@ function BreachModal({ challenge: c, onClose, solved }: { challenge: ViewChallen
   /** The pop-up settings for a moment (this challenge's own, else the Pop-ups board default). */
   const popup = (key: CueKey) => {
     const cue = cueFor(backend.getView()?.popups ?? view.popups, c?.cues, key);
-    return { text: cue.text, image: backend.mediaSrc(cue.image), seconds: cue.seconds };
+    return { text: cue.text, image: backend.mediaSrc(cue.image), seconds: cue.seconds, fx: cue.fx };
   };
 
   if (!c) return <Modal open={false} onClose={onClose}>{null}</Modal>;

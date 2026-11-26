@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { pickFx } from "../core/popups";
 
 /* ---------------- Toasts ---------------- */
 
@@ -16,9 +17,9 @@ interface UiCtx {
   confirm(opts: ConfirmOpts): Promise<boolean>;
   /** Fx triggers: each call bumps a counter that the full-screen pop-ups watch. */
   fx: FxState;
-  /** Wrong-flag pop-up (A.R.I.A.) in one of three moods. Empty text = the built-in line. */
+  /** Wrong-flag pop-up in one of three moods, with a superpower effect. Empty text = the built-in line. */
   fireWrong(mood?: MemeMood, opts?: PopupOpts): void;
-  /** Correct-flag pop-up (the lightning hammer). */
+  /** Correct-flag pop-up with a superpower effect. */
   fireSeal(title: string, points: number, opts?: PopupOpts): void;
 }
 
@@ -28,6 +29,8 @@ export interface PopupOpts {
   text?: string;
   image?: string | null;
   seconds?: number;
+  /** "random" (default) or one effect id. */
+  fx?: string;
 }
 
 interface ConfirmOpts {
@@ -38,8 +41,8 @@ interface ConfirmOpts {
 }
 
 export interface FxState {
-  wrong: { n: number; mood: MemeMood; text: string; image: string | null; seconds: number };
-  seal: { n: number; title: string; points: number; text: string; image: string | null; seconds: number };
+  wrong: { n: number; mood: MemeMood; text: string; image: string | null; seconds: number; fx: string };
+  seal: { n: number; title: string; points: number; text: string; image: string | null; seconds: number; fx: string };
 }
 
 const Ui = createContext<UiCtx | null>(null);
@@ -48,8 +51,8 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [dialog, setDialog] = useState<(ConfirmOpts & { resolve: (v: boolean) => void }) | null>(null);
   const [fx, setFx] = useState<FxState>({
-    wrong: { n: 0, mood: "wrong", text: "", image: null, seconds: 3 },
-    seal: { n: 0, title: "", points: 0, text: "", image: null, seconds: 4 },
+    wrong: { n: 0, mood: "wrong", text: "", image: null, seconds: 3, fx: "aria" },
+    seal: { n: 0, title: "", points: 0, text: "", image: null, seconds: 4, fx: "thunder" },
   });
   const idRef = useRef(0);
 
@@ -65,12 +68,12 @@ export function UiProvider({ children }: { children: ReactNode }) {
   );
   const fireWrong = useCallback(
     (mood: MemeMood = "wrong", o: PopupOpts = {}) =>
-      setFx((f) => ({ ...f, wrong: { n: f.wrong.n + 1, mood, text: o.text ?? "", image: o.image ?? null, seconds: o.seconds ?? (mood === "wrong" ? 3 : 4) } })),
+      setFx((f) => ({ ...f, wrong: { n: f.wrong.n + 1, mood, text: o.text ?? "", image: o.image ?? null, seconds: o.seconds ?? (mood === "wrong" ? 3 : 4), fx: pickFx(mood, o.fx, f.wrong.fx) } })),
     [],
   );
   const fireSeal = useCallback(
     (title: string, points: number, o: PopupOpts = {}) =>
-      setFx((f) => ({ ...f, seal: { n: f.seal.n + 1, title, points, text: o.text ?? "", image: o.image ?? null, seconds: o.seconds ?? 4 } })),
+      setFx((f) => ({ ...f, seal: { n: f.seal.n + 1, title, points, text: o.text ?? "", image: o.image ?? null, seconds: o.seconds ?? 4, fx: pickFx("correct", o.fx, f.seal.fx) } })),
     [],
   );
 

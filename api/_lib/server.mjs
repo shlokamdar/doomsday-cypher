@@ -340,35 +340,54 @@ var CUE_LABELS = {
     title: "Wrong flag",
     when: "Any wrong guess (when more than one attempt is left, or attempts are unlimited)",
     defaultText: "WRONG FLAG, AGENT",
-    art: "A.R.I.A., the team's holographic assistant, pops up and roasts the guess."
+    art: "A random superpower stops the flag: A.R.I.A. roasts it, a force shield blocks it, a web traps it, a portal swallows it, the screen cracks or it turns to dust."
   },
   lastAttempt: {
     title: "Last attempt left",
     when: "A wrong guess that leaves the team exactly one attempt",
     defaultText: "ONE ATTEMPT LEFT",
-    art: "A.R.I.A. in amber alert mode, flashing a warning."
+    art: "A random wrong-flag superpower, in amber alert colours with a final-attempt warning."
   },
   outOfAttempts: {
     title: "Out of attempts",
     when: "The wrong guess that uses the team's final attempt",
     defaultText: "LOCKDOWN",
-    art: "A.R.I.A. in red lockdown mode as the challenge seals shut."
+    art: "A random wrong-flag superpower, in red lockdown colours as the challenge seals shut."
   },
   correct: {
     title: "Correct flag",
     when: "The team captures the flag",
     defaultText: "WORTHY!",
-    art: "A lightning hammer slams down with thunder bolts and a screen flash."
+    art: "A random superpower celebrates: lightning hammer, force shield, web catch, energy blast, ground smash, portal or bullseye arrow."
   }
 };
 var CUE_KEYS = Object.keys(CUE_LABELS);
+var CORRECT_FX = [
+  { id: "thunder", name: "Lightning hammer" },
+  { id: "shield", name: "Force shield" },
+  { id: "web", name: "Web catch" },
+  { id: "blast", name: "Energy blast" },
+  { id: "smash", name: "Ground smash" },
+  { id: "portal", name: "Portal" },
+  { id: "arrow", name: "Bullseye arrow" }
+];
+var WRONG_FX = [
+  { id: "aria", name: "A.R.I.A. assistant" },
+  { id: "shield", name: "Force shield block" },
+  { id: "web", name: "Stuck in a web" },
+  { id: "portal", name: "Swallowed by a portal" },
+  { id: "smash", name: "Screen crack" },
+  { id: "dust", name: "Turned to dust" }
+];
+var fxListFor = (key) => key === "correct" ? CORRECT_FX : WRONG_FX;
+var validFx = (key, fx) => typeof fx === "string" && (fx === "random" || fxListFor(key).some((f) => f.id === fx));
 function defaultPopups() {
   return {
     cues: {
-      wrong: { image: "none", text: "", seconds: 3 },
-      lastAttempt: { image: "none", text: "", seconds: 4 },
-      outOfAttempts: { image: "none", text: "", seconds: 4 },
-      correct: { image: "none", text: "", seconds: 4 }
+      wrong: { image: "none", text: "", seconds: 3, fx: "random" },
+      lastAttempt: { image: "none", text: "", seconds: 4, fx: "random" },
+      outOfAttempts: { image: "none", text: "", seconds: 4, fx: "random" },
+      correct: { image: "none", text: "", seconds: 4, fx: "random" }
     },
     images: []
   };
@@ -389,19 +408,20 @@ function imageMetaFor(name, dataUrl, now) {
 function knownImage(ref, images) {
   return ref === "none" || ref.startsWith("upload:") && images.some((s) => `upload:${s.id}` === ref);
 }
-function checkCue(cue, images) {
+function checkCue(cue, images, key = "wrong") {
   const c = cue ?? {};
   const image = String(c.image ?? "none");
   if (!knownImage(image, images)) throw new UserError("That image isn't on the Pop-ups board any more.");
   const seconds = Math.min(10, Math.max(1, Math.round(Number(c.seconds) || 3)));
-  return { image, text: String(c.text ?? "").trim().slice(0, 40), seconds };
+  const fx = validFx(key, c.fx) ? String(c.fx) : "random";
+  return { image, text: String(c.text ?? "").trim().slice(0, 40), seconds, fx };
 }
 function checkCues(cues, images) {
   if (!cues || typeof cues !== "object") return void 0;
   const out = {};
   for (const k of CUE_KEYS) {
     const c = cues[k];
-    if (c) out[k] = checkCue(c, images);
+    if (c) out[k] = checkCue(c, images, k);
   }
   return Object.keys(out).length ? out : void 0;
 }
@@ -1460,7 +1480,7 @@ var METHODS = {
     auth: "admin",
     fn({ db }, key, cue) {
       if (!CUE_KEYS.includes(key)) throw new UserError("Unknown moment.");
-      db.popups.cues[key] = checkCue(cue, db.popups.images);
+      db.popups.cues[key] = checkCue(cue, db.popups.images, key);
     }
   },
   /**

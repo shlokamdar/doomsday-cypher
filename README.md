@@ -29,11 +29,13 @@ points, shared attempt limits, pop-ups for every flag moment, the Python workspa
   squad, shows who opened it), shared attempt limits, flag box that opens/closes with the clock.
 - Challenges stay hidden (no titles at all) until Admin starts the event clock; the page then fills
   in by itself. Hints and the flag box say they open when the clock starts.
-- Wrong flag: A.R.I.A., an original holographic assistant, pops up and roasts the guess (cyan). The
-  guess that leaves one attempt turns her amber ("ONE ATTEMPT LEFT"), the one that uses the last attempt
-  red ("LOCKDOWN"). Correct flag: a lightning hammer drops from a storm and slams down with bolts,
-  a white flash and a shockwave. The site plays no sounds. Text, time on screen and an optional
-  meme image for each moment come from the Pop-ups page (and can be changed per challenge).
+- Superpower pop-ups: every flag submission plays an effect picked at random (secure random source,
+  never the same one twice in a row). Correct: lightning hammer, force shield, web catch, energy
+  blast, ground smash, portal or bullseye arrow. Wrong: A.R.I.A. (an original holographic
+  assistant), force-shield block, stuck in a web, swallowed by a portal, screen crack or turned to
+  dust. The guess that leaves one attempt plays in amber ("ONE ATTEMPT LEFT"), the one that uses the
+  last attempt in red ("LOCKDOWN"). The site plays no sounds. On the Pop-ups page Admin can lock an
+  effect, and set the text, time on screen and an optional meme image for each moment (also per challenge).
 - Python workspace (optional per challenge): Python 3 runs in the player's browser (Pyodide,
   self-hosted in `public/pyodide/`) with numpy, pandas and the standard library. The challenge's
   own `files/…` links are ready to open by name. 30-second limit per run, Stop button. Code never
@@ -164,7 +166,7 @@ node scripts/e2e.mjs   # two-browser end-to-end check (needs Chrome + Edge, buil
 ```
 
 `scripts/gen-demo-hashes.mjs` regenerates the demo hashes with fresh random flags, written only to
-`.secrets/demo-flags.txt` (git-ignored). The pop-up art (lightning hammer, A.R.I.A.) is original SVG
+`.secrets/demo-flags.txt` (git-ignored). All pop-up art (hammer, shield, web, portal, A.R.I.A. and the rest) is original,
 drawn in `src/components/Popups.tsx`; there are no sound files.
 
 Data model changes: bump `DATA_VERSION` in `src/core/seed.ts` and add a step to `src/core/migrate.ts`.

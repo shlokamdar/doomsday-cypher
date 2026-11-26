@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CUE_KEYS, CUE_LABELS, MAX_IMAGE_BYTES } from "../../core/popups";
+import { CUE_KEYS, CUE_LABELS, fxListFor, MAX_IMAGE_BYTES } from "../../core/popups";
 import type { Cue, CueKey, MediaMeta } from "../../core/types";
 import { useBackend } from "../../hooks/store";
 import { useRun, useUi } from "../../hooks/ui";
@@ -12,7 +12,7 @@ export function usePreview() {
   const { backend } = useBackend();
   const { fireWrong, fireSeal } = useUi();
   return (key: CueKey, cue: Cue) => {
-    const opts = { text: cue.text, image: backend.mediaSrc(cue.image), seconds: cue.seconds };
+    const opts = { text: cue.text, image: backend.mediaSrc(cue.image), seconds: cue.seconds, fx: cue.fx };
     if (key === "correct") fireSeal("this challenge", 100, opts);
     else fireWrong(key, opts);
   };
@@ -23,7 +23,7 @@ function labelOf(ref: string, images: MediaMeta[]) {
   return images.find((s) => `upload:${s.id}` === ref)?.name ?? "missing";
 }
 
-/** Meme image + pop-up text + time on screen for one moment. With `allowDefault`, it can follow the board default. */
+/** Superpower effect + meme image + pop-up text + time on screen for one moment. With `allowDefault`, it can follow the board default. */
 export function CueEditor({
   k,
   value,
@@ -46,7 +46,20 @@ export function CueEditor({
   const set = (patch: Partial<Cue>) => onChange({ ...cue, ...patch });
   const id = (s: string) => `${idPrefix}-${k}-${s}`;
   return (
-    <div className="grid gap-3 sm:grid-cols-[1.4fr_1.4fr_5.5rem_auto] sm:items-end">
+    <div className="grid gap-3 sm:grid-cols-[1.3fr_1.3fr_1.3fr_5.5rem_auto] sm:items-end">
+      <div>
+        <label className="label" htmlFor={id("f")}>
+          Effect
+        </label>
+        <select id={id("f")} className="input disabled:opacity-40" disabled={usingDefault} value={cue.fx ?? "random"} onChange={(e) => set({ fx: e.target.value })}>
+          <option value="random">Random every time</option>
+          {fxListFor(k).map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label className="label" htmlFor={id("i")}>
           Meme image
@@ -74,7 +87,7 @@ export function CueEditor({
           className="input disabled:opacity-40"
           maxLength={40}
           disabled={usingDefault}
-          placeholder={CUE_LABELS[k].defaultText}
+          placeholder={k === "wrong" || k === "correct" ? "Each effect's own line" : CUE_LABELS[k].defaultText}
           value={usingDefault ? "" : cue.text}
           onChange={(e) => set({ text: e.target.value })}
         />

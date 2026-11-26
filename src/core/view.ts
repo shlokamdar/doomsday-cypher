@@ -113,6 +113,7 @@ export function buildView(db: DB, viewerId: string | null, now: number, version 
     popups: structuredClone(db.popups),
   };
   if (sessionInvalid) view.sessionInvalid = true;
+  if (isAdmin) view.testerEnabled = !!db.tester;
   if (isAdmin) view.users = db.users.map((u) => publicUser(u, true));
   return view;
 }

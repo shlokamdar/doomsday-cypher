@@ -320,3 +320,20 @@ describe("server: private challenge files", () => {
     expect(bad.status).toBe(404);
   });
 });
+
+describe("server: testing page files", () => {
+  it("the testing password unlocks any challenge file via header", async () => {
+    const s = server();
+    const admin = await demoAdmin(s);
+    const id = "testerfile0001ab";
+    await s.store.putBlob(fileKey(id), JSON.stringify({ name: "d.txt", type: "text/plain", b64: Buffer.from("hi").toString("base64") }));
+    await admin.actions.postSingle(input({ files: [{ name: "d.txt", url: `/api/file?id=${id}` }] }), { mode: "draft" });
+    const get = (headers: Record<string, string>) => handleFile({ method: "GET", url: `/api/file?id=${id}`, headers }, s.deps);
+    expect((await get({ "x-tester-password": "whatever1" })).status).toBe(401); // no password set yet
+    await admin.actions.setTesterPassword("tester-secret");
+    expect((await get({ "x-tester-password": "wrong-one" })).status).toBe(401);
+    const ok = await get({ "x-tester-password": "tester-secret" });
+    expect(ok.status).toBe(200);
+    expect(Buffer.from(ok.body!, "base64").toString()).toBe("hi");
+  });
+});

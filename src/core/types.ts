@@ -158,6 +158,8 @@ export interface DB {
   notifications: Notification[];
   settings: Settings;
   popups: PopupBoard;
+  /** Password for the /all-challenge-view testing page (hash only). null/absent = page off for non-admins. */
+  tester?: { passwordHash: string; passwordSalt: string } | null;
 }
 
 /* ---------------- View: what one viewer is allowed to see ---------------- */
@@ -251,6 +253,26 @@ export interface View {
   popups: PopupBoard;
   /** Admin only */
   users?: PublicUser[];
+  /** Admin only: whether the testing page has a password set. */
+  testerEnabled?: boolean;
+}
+
+/** One challenge as shown on the testing page: everything except the flag. */
+export interface TesterChallenge {
+  id: string;
+  title: string;
+  theme: ThemeId;
+  points: number;
+  status: ChallengeStatus;
+  description: string;
+  hints: Hint[];
+  files: FileLink[];
+  maxAttempts: number;
+  caseSensitive: boolean;
+  waveNumber: number | null;
+  releaseAt: number | null;
+  archivedAt: number | null;
+  solves: number;
 }
 
 export interface ChallengeInput {

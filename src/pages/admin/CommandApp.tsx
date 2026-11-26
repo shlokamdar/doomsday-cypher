@@ -21,6 +21,7 @@ const NAV = [
   { to: "/admin/popups", label: "Pop-ups", icon: Icon.Bolt },
   { to: "/admin/submissions", label: "Submissions", icon: Icon.List },
   { to: "/admin/settings", label: "Settings", icon: Icon.Gear },
+  { to: "/all-challenge-view", label: "Test all challenges", icon: Icon.Check },
 ];
 
 export default function CommandApp() {

@@ -1,7 +1,7 @@
 import { hashFlag, hashPassword, newId, newSalt, safeEqual, tempPassword } from "./crypto";
 import { parseSquadCsv, type RowError } from "./csv";
 import { UserError } from "./errors";
-import { attemptInfo, clockName, clockPhase, MINUTE } from "./logic";
+import { attemptInfo, challengeStatus, clockName, clockPhase, MINUTE } from "./logic";
 import { validateBackup } from "./migrate";
 import { DATA_VERSION, demoDb, emptyDb } from "./seed";
 import { checkCue, checkCues, CUE_KEYS, defaultPopups, isMediaId } from "./popups";
@@ -222,6 +222,17 @@ function replaceDb(target: DB, next: DB) {
 
 function teamSolved(db: DB, teamId: string, challengeId: string) {
   return db.submissions.some((s) => s.teamId === teamId && s.challengeId === challengeId && s.correct);
+}
+
+/** True when `password` matches the testing-page password. */
+export async function testerPasswordOk(db: DB, password: unknown): Promise<boolean> {
+  if (!db.tester || typeof password !== "string" || !password) return false;
+  return safeEqual(await hashPassword(password, db.tester.passwordSalt), db.tester.passwordHash);
+}
+
+async function requireTester(db: DB, actor: User | null, password: unknown) {
+  if (actor?.role === "admin") return;
+  if (!(await testerPasswordOk(db, password))) throw new UserError("Wrong testing password.", 401);
 }
 
 /* ---------------- methods (the RPC whitelist) ---------------- */
@@ -513,6 +524,60 @@ export const METHODS: Record<string, MethodSpec> = {
    * release | schedule (needs `at`) | unpublish | archive | restore | delete.
    * Archived challenges are skipped by release/schedule/unpublish. A bulk release sends one announcement.
    */
+  /* ---- Testing page (/all-challenge-view): Admin, or anyone with the testing password ---- */
+  testerChallenges: {
+    auth: "none",
+    readonly: true,
+    async fn({ db, actor, now }, password: unknown) {
+      await requireTester(db, actor, password);
+      const solved = (id: string) => new Set(db.submissions.filter((s) => s.challengeId === id && s.correct).map((s) => s.teamId)).size;
+      return db.challenges.map((c) => ({
+        id: c.id,
+        title: c.title,
+        theme: c.theme,
+        points: c.points,
+        status: challengeStatus(c, now),
+        description: c.description,
+        hints: c.hints.map((h) => ({ ...h })),
+        files: c.files.map((f) => ({ ...f })),
+        maxAttempts: c.maxAttempts,
+        caseSensitive: c.caseSensitive,
+        waveNumber: db.waves.find((w) => w.id === c.waveId)?.number ?? null,
+        releaseAt: c.releaseAt,
+        archivedAt: c.archivedAt ?? null,
+        solves: solved(c.id),
+      }));
+    },
+  },
+  /** Checks a flag without recording anything (no submission, no points, no attempts, no rate limit). */
+  testerCheckFlag: {
+    auth: "none",
+    readonly: true,
+    async fn({ db, actor }, password: unknown, challengeId: unknown, valueRaw: unknown) {
+      await requireTester(db, actor, password);
+      const c = findChallenge(db, challengeId);
+      const value = typeof valueRaw === "string" ? valueRaw.trim() : "";
+      if (!value) throw new UserError("Enter a flag.");
+      if (value.length > 500) throw new UserError("That flag is far too long.");
+      return { correct: safeEqual(await hashFlag(value, c.caseSensitive, c.flagSalt), c.flagHash) };
+    },
+  },
+  /** Sets the testing-page password ("" turns the page off for everyone except Admin). */
+  setTesterPassword: {
+    auth: "admin",
+    async fn({ db }, password: unknown) {
+      const pw = typeof password === "string" ? password : "";
+      if (!pw) {
+        db.tester = null;
+        return { enabled: false };
+      }
+      if (pw.length < 6) throw new UserError("Use at least 6 characters.");
+      if (pw.length > 200) throw new UserError("That password is too long.");
+      const salt = newSalt();
+      db.tester = { passwordSalt: salt, passwordHash: await hashPassword(pw, salt) };
+      return { enabled: true };
+    },
+  },
   bulkChallenges: {
     auth: "admin",
     fn({ db, now }, actionRaw: unknown, idsRaw: unknown, atRaw: unknown) {

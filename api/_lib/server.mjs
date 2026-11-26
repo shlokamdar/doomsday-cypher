@@ -905,6 +905,14 @@ function replaceDb(target, next) {
 function teamSolved(db, teamId, challengeId) {
   return db.submissions.some((s) => s.teamId === teamId && s.challengeId === challengeId && s.correct);
 }
+async function testerPasswordOk(db, password) {
+  if (!db.tester || typeof password !== "string" || !password) return false;
+  return safeEqual(await hashPassword(password, db.tester.passwordSalt), db.tester.passwordHash);
+}
+async function requireTester(db, actor, password) {
+  if (actor?.role === "admin") return;
+  if (!await testerPasswordOk(db, password)) throw new UserError("Wrong testing password.", 401);
+}
 var METHODS = {
   /* ---- auth ---- */
   login: {
@@ -1187,6 +1195,60 @@ var METHODS = {
    * release | schedule (needs `at`) | unpublish | archive | restore | delete.
    * Archived challenges are skipped by release/schedule/unpublish. A bulk release sends one announcement.
    */
+  /* ---- Testing page (/all-challenge-view): Admin, or anyone with the testing password ---- */
+  testerChallenges: {
+    auth: "none",
+    readonly: true,
+    async fn({ db, actor, now }, password) {
+      await requireTester(db, actor, password);
+      const solved = (id) => new Set(db.submissions.filter((s) => s.challengeId === id && s.correct).map((s) => s.teamId)).size;
+      return db.challenges.map((c) => ({
+        id: c.id,
+        title: c.title,
+        theme: c.theme,
+        points: c.points,
+        status: challengeStatus(c, now),
+        description: c.description,
+        hints: c.hints.map((h) => ({ ...h })),
+        files: c.files.map((f) => ({ ...f })),
+        maxAttempts: c.maxAttempts,
+        caseSensitive: c.caseSensitive,
+        waveNumber: db.waves.find((w) => w.id === c.waveId)?.number ?? null,
+        releaseAt: c.releaseAt,
+        archivedAt: c.archivedAt ?? null,
+        solves: solved(c.id)
+      }));
+    }
+  },
+  /** Checks a flag without recording anything (no submission, no points, no attempts, no rate limit). */
+  testerCheckFlag: {
+    auth: "none",
+    readonly: true,
+    async fn({ db, actor }, password, challengeId, valueRaw) {
+      await requireTester(db, actor, password);
+      const c = findChallenge(db, challengeId);
+      const value = typeof valueRaw === "string" ? valueRaw.trim() : "";
+      if (!value) throw new UserError("Enter a flag.");
+      if (value.length > 500) throw new UserError("That flag is far too long.");
+      return { correct: safeEqual(await hashFlag(value, c.caseSensitive, c.flagSalt), c.flagHash) };
+    }
+  },
+  /** Sets the testing-page password ("" turns the page off for everyone except Admin). */
+  setTesterPassword: {
+    auth: "admin",
+    async fn({ db }, password) {
+      const pw = typeof password === "string" ? password : "";
+      if (!pw) {
+        db.tester = null;
+        return { enabled: false };
+      }
+      if (pw.length < 6) throw new UserError("Use at least 6 characters.");
+      if (pw.length > 200) throw new UserError("That password is too long.");
+      const salt = newSalt();
+      db.tester = { passwordSalt: salt, passwordHash: await hashPassword(pw, salt) };
+      return { enabled: true };
+    }
+  },
   bulkChallenges: {
     auth: "admin",
     fn({ db, now }, actionRaw, idsRaw, atRaw) {
@@ -1595,6 +1657,7 @@ function buildView(db, viewerId, now, version = "0", sessionInvalid = false) {
     popups: structuredClone(db.popups)
   };
   if (sessionInvalid) view.sessionInvalid = true;
+  if (isAdmin) view.testerEnabled = !!db.tester;
   if (isAdmin) view.users = db.users.map((u) => publicUser(u, true));
   return view;
 }
@@ -1884,10 +1947,11 @@ async function handleFile(req, deps) {
     const now = (deps.now ?? Date.now)();
     const { db } = await load(deps, now);
     const userId = await verifyToken(deps.secret, bearer(req), db, now);
-    if (!userId) return json(401, { error: "Please log in to download challenge files." });
-    const user = db.users.find((u) => u.id === userId);
+    const tester = await testerPasswordOk(db, req.headers["x-tester-password"]);
+    if (!userId && !tester) return json(401, { error: "Please log in to download challenge files." });
+    const user = userId ? db.users.find((u) => u.id === userId) : void 0;
     const url = `/api/file?id=${id}`;
-    const allowed = user?.role === "admin" || buildView(db, userId, now).challenges.some((c) => c.files.some((f2) => f2.url === url));
+    const allowed = tester || user?.role === "admin" || !!userId && buildView(db, userId, now).challenges.some((c) => c.files.some((f2) => f2.url === url));
     if (!allowed) return notFound;
     const raw = await deps.store.getBlob(fileKey(id));
     if (!raw) return notFound;

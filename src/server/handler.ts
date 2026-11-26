@@ -1,5 +1,5 @@
 import { sha256Hex } from "../core/crypto";
-import { dispatch, METHODS } from "../core/engine";
+import { dispatch, METHODS, testerPasswordOk } from "../core/engine";
 import { isUserError, UserError } from "../core/errors";
 import { migrate } from "../core/migrate";
 import { demoDbWithAdminPassword, freshDb } from "../core/seed";
@@ -149,11 +149,15 @@ export async function handleFile(req: Req, deps: ServerDeps): Promise<Res> {
     const now = (deps.now ?? Date.now)();
     const { db } = await load(deps, now);
     const userId = await verifyToken(deps.secret, bearer(req), db, now);
-    if (!userId) return json(401, { error: "Please log in to download challenge files." });
-    const user = db.users.find((u) => u.id === userId);
+    // The testing page (/all-challenge-view) sends its password in a header instead of a login.
+    const tester = await testerPasswordOk(db, req.headers["x-tester-password"]);
+    if (!userId && !tester) return json(401, { error: "Please log in to download challenge files." });
+    const user = userId ? db.users.find((u) => u.id === userId) : undefined;
     const url = `/api/file?id=${id}`;
     const allowed =
-      user?.role === "admin" || buildView(db, userId, now).challenges.some((c) => c.files.some((f) => f.url === url));
+      tester ||
+      user?.role === "admin" ||
+      (!!userId && buildView(db, userId, now).challenges.some((c) => c.files.some((f) => f.url === url)));
     if (!allowed) return notFound;
     const raw = await deps.store.getBlob(fileKey(id));
     if (!raw) return notFound;

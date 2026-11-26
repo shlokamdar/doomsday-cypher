@@ -10,6 +10,7 @@ import type {
   Settings,
   MediaMeta,
   SubmitResult,
+  TesterChallenge,
   View,
 } from "../core/types";
 
@@ -36,6 +37,9 @@ export interface Actions {
   releaseWave(waveId: string): Promise<unknown>;
   deleteChallenge(id: string): Promise<unknown>;
   archiveChallenge(id: string): Promise<unknown>;
+  testerChallenges(password: string): Promise<TesterChallenge[]>;
+  testerCheckFlag(password: string, challengeId: string, value: string): Promise<{ correct: boolean }>;
+  setTesterPassword(password: string): Promise<{ enabled: boolean }>;
   bulkChallenges(
     action: "release" | "schedule" | "unpublish" | "archive" | "restore" | "delete",
     ids: string[],
@@ -95,6 +99,9 @@ export const ACTION_NAMES: (keyof Actions)[] = [
   "deleteChallenge",
   "archiveChallenge",
   "bulkChallenges",
+  "testerChallenges",
+  "testerCheckFlag",
+  "setTesterPassword",
   "restoreChallenge",
   "grantAttempts",
   "groupIntoWave",
@@ -137,7 +144,7 @@ export interface Backend {
   refresh(): Promise<void>;
   logout(): Promise<void>;
   /** Downloads a challenge file. Private files (/api/file) need the player's login. */
-  downloadFile(url: string, name: string): Promise<void>;
+  downloadFile(url: string, name: string, testerPassword?: string): Promise<void>;
   /** A URL the browser can show for an image reference ("upload:…"), or null ("none"). */
   mediaSrc(ref: string): string | null;
   /** serverNow − Date.now(), so clocks agree with the server. */

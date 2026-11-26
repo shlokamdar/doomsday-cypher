@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clockTime, downloadText } from "../../components/Bits";
 import { useBackend } from "../../hooks/store";
 import { useRun, useUi } from "../../hooks/ui";
+import { Link } from "react-router-dom";
 import { AdminTitle } from "./CommandApp";
 
 export function AdminSettings() {
@@ -65,6 +66,8 @@ export function AdminSettings() {
         <p className="text-xs text-steel/60">Start, extend and end the clock from the dashboard.</p>
       </form>
 
+
+      <TesterSection />
 
       <section className="plate grid gap-3 p-5">
         <h2 className="h-display text-2xl">Scoreboard</h2>
@@ -168,5 +171,54 @@ function Field({ label, id, children }: { label: string; id: string; children: R
       </label>
       {children}
     </div>
+  );
+}
+
+/** Password for the /all-challenge-view testing page (for testers who aren't Admin). */
+function TesterSection() {
+  const { view, actions } = useBackend();
+  const { run, busy } = useRun();
+  const [pw, setPw] = useState("");
+  const enabled = !!view.testerEnabled;
+  return (
+    <section className="plate grid gap-3 p-5">
+      <h2 className="h-display text-2xl">Testing page</h2>
+      <p className="text-sm text-steel/80">
+        <Link to="/all-challenge-view" className="text-reactor underline">
+          /all-challenge-view
+        </Link>{" "}
+        lists every challenge (drafts, scheduled and archived too) with full hints, files and a flag checker that records nothing. Admin can
+        always open it. Set a password so testers can open it without an admin login.
+      </p>
+      <p className="text-sm">
+        Status:{" "}
+        {enabled ? <strong className="text-reactor">password set</strong> : <strong className="text-steel">no password (Admin only)</strong>}
+      </p>
+      <form
+        className="flex flex-col gap-2 sm:flex-row"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (await run(() => actions.setTesterPassword(pw), "Testing password saved.")) setPw("");
+        }}
+      >
+        <input
+          type="password"
+          className="input"
+          placeholder={enabled ? "New testing password" : "Testing password (6+ characters)"}
+          aria-label="Testing password"
+          autoComplete="new-password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+        />
+        <button className="btn-primary shrink-0" disabled={busy || pw.length < 6}>
+          {enabled ? "Change password" : "Set password"}
+        </button>
+        {enabled && (
+          <button type="button" className="btn-ghost shrink-0" disabled={busy} onClick={() => run(() => actions.setTesterPassword(""), "Testing page is now Admin only.")}>
+            Turn off
+          </button>
+        )}
+      </form>
+    </section>
   );
 }

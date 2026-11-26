@@ -575,3 +575,43 @@ describe("bulk challenge actions", () => {
     await expect(players[0].actions.bulkChallenges("delete", [id])).rejects.toThrow(/Admin only/);
   });
 });
+
+describe("testing page (all-challenge-view)", () => {
+  it("lists every challenge for Admin or the testing password, and checks flags without recording", async () => {
+    const w = await startedEvent();
+    const flag = randomFlag();
+    const live = await w.admin.actions.postSingle(input({ flag, title: "Live one", hints: [{ text: "secret hint", cost: 10 }] }), { mode: "now" });
+    await w.admin.actions.postSingle(input({ title: "Draft one" }), { mode: "draft" });
+    const arch = await w.admin.actions.postSingle(input({ title: "Archived one" }), { mode: "now" });
+    await w.admin.actions.archiveChallenge(arch.id);
+
+    // Admin: no password needed, sees all statuses and full hint text, never the flag
+    const all = await w.admin.actions.testerChallenges("");
+    expect(all.map((c) => c.status).sort()).toEqual(["archived", "draft", "live"]);
+    expect(all.find((c) => c.id === live.id)!.hints[0].text).toBe("secret hint");
+    expect(JSON.stringify(all)).not.toMatch(/flagHash|flagSalt|IAMDOOM\{/);
+
+    // A player without the password is refused (page is off until Admin sets one)
+    const { players } = await joinSquad(w, w.admin);
+    await expect(players[0].actions.testerChallenges("anything")).rejects.toThrow(/Wrong testing password/);
+    await w.admin.actions.setTesterPassword("test-pass-1");
+    await expect(players[0].actions.testerChallenges("nope-nope")).rejects.toThrow(/Wrong testing password/);
+    expect((await players[0].actions.testerChallenges("test-pass-1")).length).toBe(3);
+
+    // flag check: right/wrong, and nothing is recorded
+    const subsBefore = w.admin.getView()!.submissions.length;
+    expect(await players[0].actions.testerCheckFlag("test-pass-1", live.id, flag.toUpperCase())).toEqual({ correct: true });
+    expect(await players[0].actions.testerCheckFlag("test-pass-1", live.id, "IAMDOOM{nope}")).toEqual({ correct: false });
+    await w.admin.refresh();
+    expect(w.admin.getView()!.submissions.length).toBe(subsBefore);
+    expect(w.admin.getView()!.solves).toHaveLength(0);
+
+    // the password hash never reaches players; Admin only learns that one is set
+    await players[0].refresh();
+    expect(JSON.stringify(players[0].getView())).not.toMatch(/tester|passwordSalt/);
+    expect(w.admin.getView()!.testerEnabled).toBe(true);
+    await expect(players[0].actions.setTesterPassword("hijack-123")).rejects.toThrow(/Admin only/);
+    await w.admin.actions.setTesterPassword("");
+    await expect(players[0].actions.testerChallenges("test-pass-1")).rejects.toThrow(/Wrong testing password/);
+  });
+});

@@ -179,12 +179,12 @@ export class RemoteBackend implements Backend {
   refresh() {
     return this.fetchState(true);
   }
-  async downloadFile(url: string, name: string) {
+  async downloadFile(url: string, name: string, testerPassword?: string) {
     if (!url.startsWith("/api/file")) {
       window.open(url, "_blank", "noopener");
       return;
     }
-    const res = await this.f(url, { headers: this.headers(), cache: "no-store" });
+    const res = await this.f(url, { headers: this.headers(testerPassword ? { "X-Tester-Password": testerPassword } : {}), cache: "no-store" });
     if (!res.ok) throw new ApiError(res.status === 401 ? "Log in again to download this file." : "That file isn't available.", res.status);
     const href = URL.createObjectURL(await res.blob());
     const a = document.createElement("a");
